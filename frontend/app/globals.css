@@ -19,6 +19,21 @@
   --bevel-mid: #dfdfdf;
   --bevel-dark: #808080;
   --bevel-deep: #404040;
+  --cur-arrow: url("/cursors/win95/arrow.cur");
+  --cur-help: url("/cursors/win95/help_win95.cur");
+  --cur-beam: url("/cursors/win95/Beam.cur");
+  --cur-progress: url("/cursors/win95/Cursor_17.cur");
+  --cur-wait: url("/cursors/win95/Cursor_3.cur");
+  --cur-crosshair: url("/cursors/win95/Cursor_4.cur");
+  --cur-pen: url("/cursors/win95/Cursor_14.cur");
+  --cur-unavailable: url("/cursors/win95/Cursor_11.cur");
+  --cur-size-ns: url("/cursors/win95/Cursor_9.cur");
+  --cur-size-ew: url("/cursors/win95/Cursor_8.cur");
+  --cur-size-nwse: url("/cursors/win95/Cursor_6.cur");
+  --cur-size-nesw: url("/cursors/win95/Cursor_7.cur");
+  --cur-hand: url("/cursors/win95/Cursor_15.cur");
+  --cur-move: url("/cursors/win95/Cursor_10.cur");
+  --cur-up: url("/cursors/win95/Cursor_5.cur");
 }
 
 * {
@@ -49,6 +64,7 @@ body {
     0 0,
     3px 3px;
   cursor: default;
+  cursor: var(--cur-arrow), default;
   -webkit-font-smoothing: none;
   text-rendering: optimizeSpeed;
   overflow-x: hidden;
@@ -71,12 +87,12 @@ a {
 a,
 button,
 [role="button"] {
-  cursor: pointer;
+  cursor: var(--cur-hand), pointer;
 }
 
 input,
 textarea {
-  cursor: text;
+  cursor: var(--cur-beam), text;
 }
 
 .dfgf-desktop {
@@ -177,6 +193,7 @@ textarea {
     inset -1px -1px 0 var(--bevel-dark),
     inset 1px 1px 0 var(--bevel-mid);
   line-height: 1;
+  cursor: var(--cur-hand), pointer;
 }
 
 .gov-tabs {
@@ -442,6 +459,7 @@ textarea {
 .action-btn[disabled] {
   opacity: 0.55;
   pointer-events: none;
+  cursor: var(--cur-unavailable), not-allowed;
 }
 
 .action-btn-danger {
@@ -478,7 +496,7 @@ textarea {
   background: #ffffff;
   position: relative;
   transition: background-color 120ms linear;
-  cursor: default;
+  cursor: var(--cur-pen), crosshair;
 }
 
 .board-cell:hover {
@@ -495,6 +513,7 @@ textarea {
 
 .board-cell[disabled] {
   background: #f6f6f6;
+  cursor: var(--cur-unavailable), not-allowed;
 }
 
 .stamp-mark {
@@ -653,6 +672,36 @@ textarea {
 
 .chat-role {
   color: #676767;
+}
+
+.chat-intent-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  padding: 0 5px;
+  margin: 0 0 4px;
+  border: 1px solid;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chat-intent-reply {
+  border-color: #245f24;
+  background: #deffd7;
+  color: #204f20;
+}
+
+.chat-intent-game {
+  border-color: #1e4f8d;
+  background: #dcecff;
+  color: #1d3f70;
+}
+
+.chat-intent-general {
+  border-color: #6f6f6f;
+  background: #ededed;
+  color: #4f4f4f;
 }
 
 .chat-body {
@@ -988,6 +1037,314 @@ textarea {
   border: 1px solid #000;
 }
 
+.taskbar-launchers {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.taskbar-app-btn {
+  min-height: 24px;
+  min-width: 82px;
+  border: 2px solid;
+  border-color: var(--bevel-light) var(--bevel-deep) var(--bevel-deep) var(--bevel-light);
+  box-shadow:
+    inset -1px -1px 0 var(--bevel-dark),
+    inset 1px 1px 0 var(--bevel-mid);
+  background: var(--window-gray);
+  color: #000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 11px;
+  text-transform: none;
+}
+
+.taskbar-app-btn:active,
+.taskbar-app-btn-active {
+  border-color: var(--bevel-deep) var(--bevel-light) var(--bevel-light) var(--bevel-deep);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-dark),
+    inset -1px -1px 0 var(--bevel-mid);
+  background: #b7b7b7;
+}
+
+.taskbar-icon-calc::before {
+  left: 2px;
+  top: 2px;
+  width: 10px;
+  height: 12px;
+  border: 1px solid #000;
+  background-image:
+    linear-gradient(180deg, #6dc3ff 0 3px, #efefef 3px),
+    radial-gradient(circle at 2px 7px, #000 0 1px, transparent 1px),
+    radial-gradient(circle at 5px 7px, #000 0 1px, transparent 1px),
+    radial-gradient(circle at 8px 7px, #000 0 1px, transparent 1px),
+    radial-gradient(circle at 2px 10px, #000 0 1px, transparent 1px),
+    radial-gradient(circle at 5px 10px, #000 0 1px, transparent 1px),
+    radial-gradient(circle at 8px 10px, #000 0 1px, transparent 1px);
+}
+
+.taskbar-icon-snake::before {
+  left: 2px;
+  top: 2px;
+  width: 10px;
+  height: 10px;
+  background-image:
+    linear-gradient(90deg, transparent 0 2px, #1f8a35 2px 4px, transparent 4px 6px, #1f8a35 6px 8px, transparent 8px),
+    linear-gradient(180deg, transparent 0 2px, #1f8a35 2px 4px, transparent 4px 6px, #1f8a35 6px 8px, transparent 8px);
+  border: 1px solid #000;
+}
+
+.desktop-app-layer {
+  position: fixed;
+  inset: 0;
+  bottom: 36px;
+  pointer-events: none;
+  z-index: 109;
+}
+
+.desktop-app-window {
+  position: absolute;
+  border: 2px solid;
+  border-color: var(--bevel-light) var(--bevel-deep) var(--bevel-deep) var(--bevel-light);
+  box-shadow:
+    inset -1px -1px 0 var(--bevel-dark),
+    inset 1px 1px 0 var(--bevel-mid);
+  background: var(--window-gray);
+  pointer-events: auto;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 220px;
+  min-height: 220px;
+}
+
+.desktop-app-window-inactive {
+  filter: saturate(0.86);
+}
+
+.desktop-app-titlebar {
+  min-height: 20px;
+  background: linear-gradient(90deg, var(--title-blue-start), var(--title-blue-end));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  user-select: none;
+  cursor: var(--cur-move), move;
+}
+
+.desktop-app-titlebar-inactive {
+  background: var(--title-inactive);
+}
+
+.desktop-app-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.desktop-app-body {
+  border: 2px solid;
+  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-deep),
+    inset -1px -1px 0 var(--bevel-mid);
+  background: #ececec;
+  margin: 4px;
+  padding: 6px;
+}
+
+.desktop-calc-body {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 6px;
+}
+
+.desktop-calc-display {
+  min-height: 34px;
+  border: 2px solid;
+  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-deep),
+    inset -1px -1px 0 var(--bevel-mid);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 7px;
+  font-size: 18px;
+  font-family:
+    "Courier New",
+    monospace;
+  overflow: hidden;
+}
+
+.desktop-calc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.desktop-calc-btn {
+  min-height: 30px;
+  padding: 0;
+  font-size: 12px;
+  text-transform: none;
+}
+
+.desktop-calc-op {
+  background: #d8d8d8;
+}
+
+.desktop-calc-zero {
+  grid-column: span 2;
+}
+
+.desktop-calc-equals {
+  background: #cedfff;
+}
+
+.desktop-snake-body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 6px;
+}
+
+.desktop-snake-top {
+  min-height: 24px;
+  border: 2px solid;
+  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-deep),
+    inset -1px -1px 0 var(--bevel-mid);
+  background: #f2f2f2;
+  padding: 3px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.desktop-snake-board {
+  border: 2px solid;
+  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-deep),
+    inset -1px -1px 0 var(--bevel-mid);
+  background: #091309;
+  display: grid;
+  gap: 1px;
+  padding: 2px;
+  cursor: var(--cur-crosshair), crosshair;
+}
+
+.desktop-snake-cell {
+  aspect-ratio: 1 / 1;
+  background: #0f180f;
+}
+
+.desktop-snake-head {
+  background: #76ff80;
+}
+
+.desktop-snake-segment {
+  background: #2db53f;
+}
+
+.desktop-snake-food {
+  background: #ff5858;
+}
+
+.desktop-snake-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.desktop-snake-hint {
+  margin-left: auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #2f2f2f;
+}
+
+.window-controls[aria-hidden="true"] .window-control {
+  cursor: var(--cur-arrow), default;
+}
+
+.cursor-default {
+  cursor: var(--cur-arrow), default;
+}
+
+.cursor-help {
+  cursor: var(--cur-help), help;
+}
+
+.cursor-text {
+  cursor: var(--cur-beam), text;
+}
+
+.cursor-progress {
+  cursor: var(--cur-progress), progress;
+}
+
+.cursor-wait {
+  cursor: var(--cur-wait), wait;
+}
+
+.cursor-crosshair {
+  cursor: var(--cur-crosshair), crosshair;
+}
+
+.cursor-pen {
+  cursor: var(--cur-pen), crosshair;
+}
+
+.cursor-unavailable {
+  cursor: var(--cur-unavailable), not-allowed;
+}
+
+.cursor-size-ns {
+  cursor: var(--cur-size-ns), ns-resize;
+}
+
+.cursor-size-ew {
+  cursor: var(--cur-size-ew), ew-resize;
+}
+
+.cursor-size-nwse {
+  cursor: var(--cur-size-nwse), nwse-resize;
+}
+
+.cursor-size-nesw {
+  cursor: var(--cur-size-nesw), nesw-resize;
+}
+
+.cursor-hand {
+  cursor: var(--cur-hand), pointer;
+}
+
+.cursor-move {
+  cursor: var(--cur-move), move;
+}
+
+.cursor-up {
+  cursor: var(--cur-up), n-resize;
+}
+
+[aria-busy="true"] {
+  cursor: var(--cur-progress), progress;
+}
+
+[aria-busy="true"] * {
+  cursor: var(--cur-progress), progress;
+}
+
 @media (min-width: 1180px) {
   .panel-grid {
     grid-template-columns: minmax(0, 1fr) 425px;
@@ -1013,6 +1370,7 @@ textarea {
   .broadcast-box {
     grid-template-columns: 1fr;
   }
+
 }
 
 @keyframes stampImpact {

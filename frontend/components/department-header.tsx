@@ -5,6 +5,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { WindowsDialog } from "@/components/windows-dialog";
+import { getRoomSession, removeRoomSessions } from "@/features/session/storage";
+import { ApiClientError } from "@/lib/api/http-client";
+import { closeRoom } from "@/lib/api/rooms";
 
 const GAME_PROGRESS_STORAGE_KEY = "dfgf:game-progress:v1";
 const MODE_SWITCH_APPROVAL_KEY = "dfgf:mode-switch-approval:v1";
@@ -23,14 +26,15 @@ export function DepartmentHeader() {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [blockingError, setBlockingError] = useState<string | null>(null);
 
   const currentHref = `${pathname}${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`;
+  const roomCode = searchParams.get("room")?.toUpperCase() ?? null;
+  const role = searchParams.get("role");
+  const isRemoteHostContext = pathname === "/jogo" && mode === "pvp_remote" && role !== "guest" && Boolean(roomCode);
 
-  const shouldConfirmNavigation = (targetHref: string): boolean => {
+  const hasInProgressMatch = (): boolean => {
     if (typeof window === "undefined") return false;
-    if (pathname !== "/jogo") return false;
-    if (targetHref === currentHref) return false;
-
     const raw = window.localStorage.getItem(GAME_PROGRESS_STORAGE_KEY);
     if (!raw) return false;
     try {
@@ -40,6 +44,19 @@ export function DepartmentHeader() {
       return false;
     }
   };
+
+  const shouldConfirmNavigation = (targetHref: string): boolean => {
+    if (typeof window === "undefined") return false;
+    if (pathname !== "/jogo") return false;
+    if (targetHref === currentHref) return false;
+    if (isRemoteHostContext) return true;
+    return hasInProgressMatch();
+  };
+
+  const dialogMessage = isRemoteHostContext
+    ? `Voce esta saindo da sala ${roomCode}. Como host, a sala sera encerrada e deletada para todos.`
+    : "Voce esta no meio de uma partida. Se sair agora, o jogo e o chat serao limpos e o processo parcial sera enviado ao Arquivo Morto.";
+  const dialogConfirmLabel = isRemoteHostContext ? "Sair e deletar sala" : "Continuar";
 
   return (
     <>
@@ -61,8 +78,10 @@ export function DepartmentHeader() {
               const isActive =
                 item.href === "/jogo?mode=pvp_local"
                   ? pathname === "/jogo" && mode === "pvp_local"
+                  : item.href === "/sala"
+                    ? pathname === "/sala" || (pathname === "/jogo" && mode === "pvp_remote")
                   : item.href === "/jogo"
-                    ? pathname === "/jogo" && mode !== "pvp_local"
+                    ? pathname === "/jogo" && mode !== "pvp_local" && mode !== "pvp_remote"
                     : pathname === item.href;
 
               return (
@@ -88,17 +107,45 @@ export function DepartmentHeader() {
       <WindowsDialog
         open={Boolean(pendingHref)}
         title="DFGF - Confirmacao"
-        message="Voce esta no meio de uma partida. Se sair agora, o jogo e o chat serao limpos e o processo parcial sera enviado ao Arquivo Morto."
-        confirmLabel="Continuar"
+        message={dialogMessage}
+        confirmLabel={dialogConfirmLabel}
         cancelLabel="Cancelar"
         onCancel={() => setPendingHref(null)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!pendingHref) return;
           const href = pendingHref;
           setPendingHref(null);
-          window.sessionStorage.setItem(MODE_SWITCH_APPROVAL_KEY, href);
+
+          if (isRemoteHostContext && roomCode) {
+            const hostSession = getRoomSession(roomCode, "host");
+            if (hostSession?.playerId) {
+              try {
+                await closeRoom(roomCode, { hostPlayerId: hostSession.playerId });
+              } catch (error) {
+                if (!(error instanceof ApiClientError) || error.code !== "NOT_FOUND") {
+                  setBlockingError("Nao foi possivel encerrar a sala remota agora. Tente novamente em alguns segundos.");
+                  return;
+                }
+              }
+            }
+            removeRoomSessions(roomCode);
+          }
+
+          if (hasInProgressMatch()) {
+            window.sessionStorage.setItem(MODE_SWITCH_APPROVAL_KEY, href);
+          }
           router.push(href);
         }}
+      />
+
+      <WindowsDialog
+        open={Boolean(blockingError)}
+        title="Nao foi possivel sair"
+        message={blockingError ?? ""}
+        confirmLabel="Entendi"
+        cancelLabel="Fechar"
+        onConfirm={() => setBlockingError(null)}
+        onCancel={() => setBlockingError(null)}
       />
     </>
   );

@@ -1,4 +1,4 @@
-import type { ActorId, MatchMode } from "@/types/game";
+﻿import type { ActorId, ChatChannel, MatchMode } from "@/types/game";
 
 export type ChatProfile = "vs_ai" | "pvp";
 
@@ -15,7 +15,7 @@ export const ACTORS: Record<ActorId, ActorProfile> = {
   estagiario: {
     id: "estagiario",
     name: "Estagiário(a)",
-    role: "Analista Temporario",
+    role: "Analista Temporário",
     initials: "ES",
     avatarColor: "#596673"
   },
@@ -35,14 +35,14 @@ export const ACTORS: Record<ActorId, ActorProfile> = {
   },
   tulio: {
     id: "tulio",
-    name: "Tulio",
-    role: "Analista Junior (ex-estagiario)",
+    name: "Túlio",
+    role: "Analista Júnior (ex-estagiário)",
     initials: "TU",
     avatarColor: "#4e7e86"
   },
   patricia: {
     id: "patricia",
-    name: "Patricia de RH",
+    name: "Patrícia de RH",
     role: "Recursos Humanos",
     initials: "RH",
     avatarColor: "#779151"
@@ -60,54 +60,77 @@ export const ACTORS: Record<ActorId, ActorProfile> = {
 export interface UiChatMessage {
   id: string;
   actorId: ActorId;
+  actorDisplayName?: string;
   text: string;
   createdAt: string;
+  channel: ChatChannel;
+  kind: "reply" | "game_commentary" | "general";
 }
 
 const GERALDO_BROADCASTS_VS_AI = [
-  "Sr. Geraldo: minha estrategia exige paciencia burocratica.",
-  "Sr. Geraldo: nao confundam silencio com falta de visao.",
-  "Sr. Geraldo: essa jogada foi para desenvolvimento da equipe.",
-  "Sr. Geraldo: peguei essa ideia num video motivacional de 2009."
+  "Sr. Geraldo: minha estratégia exige paciência burocrática e uma caneta azul confiável.",
+  "Sr. Geraldo: não confundam meu silêncio com falta de visão; estou planejando em camadas.",
+  "Sr. Geraldo: essa jogada foi intencional para desenvolvimento de equipe e reputação.",
+  "Sr. Geraldo: peguei essa metodologia num seminário de liderança em VHS.",
+  "Sr. Geraldo: desempenho técnico é importante, mas postura no corredor também conta.",
+  "Sr. Geraldo: o plano está sob controle desde antes de vocês perceberem o risco."
 ];
 
 const GERALDO_BROADCASTS_PVP = [
-  "Sr. Geraldo: estou avaliando os dois estagiarios com criterio tecnico subjetivo.",
-  "Sr. Geraldo: o vencedor sera lembrado no relatorio trimestral que talvez eu leia.",
-  "Sr. Geraldo: jogo local e prova de maturidade departamental.",
-  "Sr. Geraldo: promocoes poderao ser discutidas no cafe, sem garantia de cafe."
+  "Sr. Geraldo: estou avaliando os dois estagiários com critério técnico subjetivo avançado.",
+  "Sr. Geraldo: o vencedor será citado no relatório trimestral que talvez eu assine.",
+  "Sr. Geraldo: disputa local é prova de maturidade departamental e resistência emocional.",
+  "Sr. Geraldo: promoções poderão ser discutidas no café, se o café for aprovado.",
+  "Sr. Geraldo: ambiente competitivo saudável, desde que eu esteja vencendo na narrativa.",
+  "Sr. Geraldo: rivalidade bem conduzida gera produtividade e fofoca de qualidade."
 ];
 
 const AMBIENT_VS_AI: Array<{ actorId: ActorId; text: string }> = [
-  { actorId: "marlene", text: "Se o Sr. Geraldo concordar, ja considero essa rodada historica." },
-  { actorId: "tulio", text: "A planilha diz que tudo esta sob controle, o que e preocupante." },
-  { actorId: "patricia", text: "Pessoal, lembrete: formulario de clima fecha hoje as 17h." },
+  { actorId: "marlene", text: "Se o Sr. Geraldo concordar, já considero essa rodada histórica." },
+  { actorId: "marlene", text: "Que leitura estratégica brilhante da chefia, mesmo sem contexto completo." },
+  { actorId: "tulio", text: "A planilha diz que está tudo sob controle, então claramente não está." },
+  { actorId: "tulio", text: "Se der errado, chamam de aprendizado. Se der certo, chamam de liderança." },
+  { actorId: "patricia", text: "Pessoal, lembrete: formulário de clima fecha hoje às 17h." },
+  { actorId: "patricia", text: "RH informa: comentários passivo-agressivos devem ser registrados no canal adequado." },
   { actorId: "sistema_dfgf", text: "PROTOCOLO INTERNO REENCAMINHADO PARA SETOR INEXISTENTE." },
-  { actorId: "geraldo", text: "Estou guiando pedagogicamente este processo, sem que percebam." }
+  { actorId: "sistema_dfgf", text: "PRAZO REVISADO PARA 180 DIAS ÚTEIS. MOTIVO: AJUSTE DE RITO." },
+  { actorId: "geraldo", text: "Estou guiando pedagogicamente este processo sem alarde institucional." }
 ];
 
 const AMBIENT_PVP: Array<{ actorId: ActorId; text: string }> = [
-  { actorId: "geraldo", text: "Observacao da chefia: ambos sob avaliação especial hoje." },
-  { actorId: "marlene", text: "Que disputas incriveis sob a supervisao impecavel do Sr. Geraldo." },
-  { actorId: "tulio", text: "Rivalidade instalada. RH vai chamar de integracao competitiva." },
-  { actorId: "patricia", text: "Ja reservei formulários de feedback para os dois participantes." },
-  { actorId: "sistema_dfgf", text: "PROCESSO PVP REGISTRADO. PROMOCAO SUJEITA A DISPONIBILIDADE ORCAMENTARIA." }
+  { actorId: "geraldo", text: "Observação da chefia: ambos estão sob avaliação especial hoje." },
+  { actorId: "geraldo", text: "Vou analisar desempenho técnico e postura em reunião improvisada." },
+  { actorId: "marlene", text: "Disputa incrível sob a supervisão impecável do Sr. Geraldo." },
+  { actorId: "marlene", text: "É impressionante como a chefia consegue elevar o nível da competição." },
+  { actorId: "tulio", text: "Rivalidade instalada. RH vai chamar isso de integração competitiva." },
+  { actorId: "tulio", text: "Dois estagiários, um formulário e nenhum plano de contingência." },
+  { actorId: "patricia", text: "Já reservei formulários de feedback para os dois participantes." },
+  { actorId: "patricia", text: "RH reforça: rivalidade é saudável até virar ata de conflito." },
+  { actorId: "sistema_dfgf", text: "PROCESSO PVP REGISTRADO. PROMOÇÃO SUJEITA À DISPONIBILIDADE ORÇAMENTÁRIA." }
 ];
 
 const USER_REPLY_VS_AI: Array<{ actorId: ActorId; text: string }> = [
-  { actorId: "marlene", text: "Excelente ponto. O Sr. Geraldo chegou na mesma conclusao ontem." },
-  { actorId: "tulio", text: "Concordo parcialmente, o restante vai para auditoria emocional." },
-  { actorId: "patricia", text: "Obrigada pela mensagem. Nao esquece de registrar no portal interno." },
-  { actorId: "geraldo", text: "Boa colocacao. Vou fingir que foi alinhada comigo antes." },
-  { actorId: "sistema_dfgf", text: "MENSAGEM RECEBIDA. PRAZO DE RETORNO: 12 DIAS UTEIS." }
+  { actorId: "marlene", text: "Excelente ponto. O Sr. Geraldo antecipou essa leitura ontem no corredor." },
+  { actorId: "marlene", text: "Contribuição muito alinhada com a visão estratégica da chefia." },
+  { actorId: "tulio", text: "Concordo em partes; a outra parte eu encaminho para auditoria emocional." },
+  { actorId: "tulio", text: "Essa sugestão é boa. Só falta sobreviver ao crivo da chefia." },
+  { actorId: "patricia", text: "Obrigada pela mensagem. Não esqueça de registrar no portal interno." },
+  { actorId: "patricia", text: "RH agradece o posicionamento. Se necessário, abrimos mediação com café." },
+  { actorId: "geraldo", text: "Boa colocação. Vou registrar como alinhamento prévio com a liderança." },
+  { actorId: "geraldo", text: "Perfeito. Era exatamente isso que eu estava prestes a dizer." },
+  { actorId: "sistema_dfgf", text: "MENSAGEM RECEBIDA. PRAZO DE RETORNO: 12 DIAS ÚTEIS." }
 ];
 
 const USER_REPLY_PVP: Array<{ actorId: ActorId; text: string }> = [
   { actorId: "geraldo", text: "Excelente postura competitiva. Vou considerar no quadro de talentos." },
-  { actorId: "marlene", text: "A chefia valoriza muito esse nivel de comprometimento." },
-  { actorId: "tulio", text: "Continuem assim. O caos esta organizado de forma elegante." },
-  { actorId: "patricia", text: "RH apoia a competicao saudavel, com laudo e assinatura." },
-  { actorId: "sistema_dfgf", text: "INTERACAO RECEBIDA. COMITE DE ACOMPANHAMENTO FOI NOTIFICADO." }
+  { actorId: "geraldo", text: "Essa energia é promissora para futuras reuniões longas e improdutivas." },
+  { actorId: "marlene", text: "A chefia valoriza muito esse nível de comprometimento." },
+  { actorId: "marlene", text: "Que atitude profissional! O Sr. Geraldo certamente observou esse detalhe." },
+  { actorId: "tulio", text: "Continuem assim. O caos está organizado de forma elegante." },
+  { actorId: "tulio", text: "Ritmo ótimo. Só falta alguém fingir que isso é benchmarking." },
+  { actorId: "patricia", text: "RH apoia a competição saudável, com laudo e assinatura." },
+  { actorId: "patricia", text: "Excelente diálogo. Depois preencham a autoavaliação sem ironia, por favor." },
+  { actorId: "sistema_dfgf", text: "INTERAÇÃO RECEBIDA. COMITÊ DE ACOMPANHAMENTO FOI NOTIFICADO." }
 ];
 
 function pickRandom<T>(items: T[]): T {
@@ -129,16 +152,16 @@ export function randomAmbientChat(profile: ChatProfile): { actorId: ActorId; tex
 export function randomReplyToUser(profile: ChatProfile, input: string): { actorId: ActorId; text: string } {
   const normalized = input.toLowerCase();
 
-  if (normalized.includes("cafe")) {
-    return { actorId: "patricia", text: "Sobre cafe: ja abrimos chamado com prioridade media-alta." };
+  if (normalized.includes("cafe") || normalized.includes("café")) {
+    return { actorId: "patricia", text: "Sobre café: já abrimos chamado com prioridade média-alta." };
   }
 
   if (normalized.includes("geraldo")) {
-    return { actorId: "geraldo", text: "Referencias a minha lideranca serao devidamente registradas." };
+    return { actorId: "geraldo", text: "Referências à minha liderança serão devidamente registradas." };
   }
 
   if (normalized.includes("promoc")) {
-    return { actorId: "tulio", text: "Promocao depende de KPI, humor da chefia e alinhamento astrologico." };
+    return { actorId: "tulio", text: "Promoção depende de KPI, humor da chefia e alinhamento astrológico." };
   }
 
   return profile === "vs_ai" ? pickRandom(USER_REPLY_VS_AI) : pickRandom(USER_REPLY_PVP);
@@ -150,3 +173,5 @@ export function nowLabel(date = new Date()): string {
     minute: "2-digit"
   });
 }
+
+

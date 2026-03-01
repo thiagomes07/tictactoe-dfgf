@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,15 +29,23 @@ type Server struct {
 	service string
 	rng     *rand.Rand
 
-	chatMu                sync.Mutex
-	lastChatAt            map[string]time.Time
-	pendingRepliesByKey   map[string]int
-	pendingRepliesByMatch map[string]int
-	chatMinInterval       time.Duration
-	chatReplyDelayMin     time.Duration
-	chatReplyDelayMax     time.Duration
-	maxPendingPerPlayer   int
-	maxPendingPerMatch    int
+	chatMu                 sync.Mutex
+	lastChatAt             map[string]time.Time
+	pendingRepliesByKey    map[string]int
+	pendingRepliesByMatch  map[string]int
+	lastGameCommentByMatch map[string]string
+	chatMinInterval        time.Duration
+	chatReplyDelayMin      time.Duration
+	chatReplyDelayMax      time.Duration
+	chatBurstMinReplies    int
+	chatBurstMaxReplies    int
+	chatBurstGapMin        time.Duration
+	chatBurstGapMax        time.Duration
+	aiMoveDelayMin         time.Duration
+	aiMoveDelayMax         time.Duration
+	bedrockTimeout         time.Duration
+	maxPendingPerPlayer    int
+	maxPendingPerMatch     int
 }
 
 func NewServer(store *store.Store, chatSvc *chat.Service, hub *ws.Hub, version string) *Server {
@@ -45,20 +54,28 @@ func NewServer(store *store.Store, chatSvc *chat.Service, hub *ws.Hub, version s
 	}
 
 	return &Server{
-		store:                 store,
-		chat:                  chatSvc,
-		hub:                   hub,
-		version:               version,
-		service:               "dfgf-backend",
-		rng:                   rand.New(rand.NewSource(time.Now().UnixNano())),
-		lastChatAt:            make(map[string]time.Time),
-		pendingRepliesByKey:   make(map[string]int),
-		pendingRepliesByMatch: make(map[string]int),
-		chatMinInterval:       2500 * time.Millisecond,
-		chatReplyDelayMin:     1200 * time.Millisecond,
-		chatReplyDelayMax:     5000 * time.Millisecond,
-		maxPendingPerPlayer:   1,
-		maxPendingPerMatch:    8,
+		store:                  store,
+		chat:                   chatSvc,
+		hub:                    hub,
+		version:                version,
+		service:                "dfgf-backend",
+		rng:                    rand.New(rand.NewSource(time.Now().UnixNano())),
+		lastChatAt:             make(map[string]time.Time),
+		pendingRepliesByKey:    make(map[string]int),
+		pendingRepliesByMatch:  make(map[string]int),
+		lastGameCommentByMatch: make(map[string]string),
+		chatMinInterval:        2500 * time.Millisecond,
+		chatReplyDelayMin:      1200 * time.Millisecond,
+		chatReplyDelayMax:      5000 * time.Millisecond,
+		chatBurstMinReplies:    2,
+		chatBurstMaxReplies:    3,
+		chatBurstGapMin:        700 * time.Millisecond,
+		chatBurstGapMax:        2200 * time.Millisecond,
+		aiMoveDelayMin:         getEnvDurationMs("AI_MOVE_DELAY_MIN_MS", 800*time.Millisecond),
+		aiMoveDelayMax:         getEnvDurationMs("AI_MOVE_DELAY_MAX_MS", 1800*time.Millisecond),
+		bedrockTimeout:         getEnvDurationMs("BEDROCK_REQUEST_TIMEOUT_MS", 25*time.Second),
+		maxPendingPerPlayer:    1,
+		maxPendingPerMatch:     8,
 	}
 }
 
@@ -66,9 +83,11 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
 
+	mux.HandleFunc("GET /v1/rooms", s.handleListRooms)
 	mux.HandleFunc("POST /v1/rooms", s.handleCreateRoom)
 	mux.HandleFunc("GET /v1/rooms/{roomCode}", s.handleGetRoom)
 	mux.HandleFunc("POST /v1/rooms/{roomCode}/join", s.handleJoinRoom)
+	mux.HandleFunc("POST /v1/rooms/{roomCode}/close", s.handleCloseRoom)
 
 	mux.HandleFunc("POST /v1/matches", s.handleCreateMatch)
 	mux.HandleFunc("GET /v1/matches/{matchId}", s.handleGetMatch)
@@ -119,16 +138,34 @@ func (s *Server) handleGetRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, activeMatchID, err := s.store.GetRoom(roomCode)
+	room, activeMatchID, hostDisplayName, err := s.store.GetRoom(roomCode)
 	if err != nil {
 		s.writeStoreError(w, err)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, model.GetRoomResponse{
-		Room:          room,
-		ActiveMatchID: activeMatchID,
+		Room:            room,
+		ActiveMatchID:   activeMatchID,
+		HostDisplayName: hostDisplayName,
 	})
+}
+
+func (s *Server) handleListRooms(w http.ResponseWriter, r *http.Request) {
+	onlyAvailable := true
+	if raw := strings.TrimSpace(r.URL.Query().Get("available")); raw != "" {
+		onlyAvailable = raw != "0" && strings.ToLower(raw) != "false"
+	}
+
+	limit := 50
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	items := s.store.ListRooms(onlyAvailable, limit)
+	writeJSON(w, http.StatusOK, model.ListRoomsResponse{Items: items})
 }
 
 func (s *Server) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
@@ -150,10 +187,49 @@ func (s *Server) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if activeMatchID != nil {
+		if match, matchErr := s.store.GetMatch(*activeMatchID); matchErr == nil {
+			s.hub.Broadcast(*activeMatchID, "match.snapshot", map[string]any{"match": match})
+		}
+	}
+
 	writeJSON(w, http.StatusOK, model.JoinRoomResponse{
 		Room:          room,
 		ActiveMatchID: activeMatchID,
 		Session:       session,
+	})
+}
+
+func (s *Server) handleCloseRoom(w http.ResponseWriter, r *http.Request) {
+	roomCode := strings.ToUpper(strings.TrimSpace(r.PathValue("roomCode")))
+	if roomCode == "" {
+		writeError(w, http.StatusBadRequest, "INVALID_ROOM_CODE", "roomCode is required", nil)
+		return
+	}
+
+	var req model.CloseRoomRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", err.Error(), nil)
+		return
+	}
+
+	activeMatchID, err := s.store.CloseRoom(roomCode, req.HostPlayerID)
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+
+	if activeMatchID != nil {
+		s.hub.Broadcast(*activeMatchID, "room.closed", map[string]any{
+			"roomCode": roomCode,
+			"reason":   "host_left",
+			"message":  "A sala foi encerrada pelo host.",
+		})
+	}
+
+	writeJSON(w, http.StatusOK, model.CloseRoomResponse{
+		RoomCode: roomCode,
+		Closed:   true,
 	})
 }
 
@@ -173,8 +249,8 @@ func (s *Server) handleCreateMatch(w http.ResponseWriter, r *http.Request) {
 	startMessage, msgErr := s.store.AddMessage(match.MatchID, model.ChatMessage{
 		ActorID:          model.ActorSistemaDFGF,
 		ActorDisplayName: "Sistema DFGF",
-		Channel:          model.ChatChannelInternalChat,
-		Body:             fmt.Sprintf("PROCESSO N? %s ABERTO. AGUARDANDO PREENCHIMENTO.", match.ProtocolCode),
+		Channel:          model.ChatChannelGameCommentary,
+		Body:             fmt.Sprintf("PROCESSO Nº %s ABERTO. AGUARDANDO PREENCHIMENTO DO FORMULÁRIO 3x3-B.", match.ProtocolCode),
 	})
 	if msgErr == nil {
 		s.hub.Broadcast(match.MatchID, "chat.message.created", map[string]any{"message": startMessage})
@@ -229,20 +305,18 @@ func (s *Server) handleSubmitMove(w http.ResponseWriter, r *http.Request) {
 
 	s.hub.Broadcast(matchID, "match.move.applied", map[string]any{"match": match, "move": playerMove})
 
-	generatedMessages := make([]model.ChatMessage, 0, 4)
-	if msg, err := s.store.AddMessage(matchID, model.ChatMessage{
-		ActorID:          model.ActorTulio,
-		ActorDisplayName: "Tulio",
-		Channel:          model.ChatChannelInternalChat,
-		Body:             "Boa escolha... dependendo do que o Sr. Geraldo achar, claro.",
-	}); err == nil {
-		generatedMessages = append(generatedMessages, msg)
-		s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": msg})
+	generatedMessages := make([]model.ChatMessage, 0, 6)
+	if commentary := s.buildCommentaryAfterPlayerMove(matchID, match, playerMove); commentary != nil {
+		if msg, err := s.store.AddMessage(matchID, *commentary); err == nil {
+			generatedMessages = append(generatedMessages, msg)
+			s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": msg})
+		}
 	}
 
 	if match.Mode == model.MatchModeVSAI && match.State == model.MatchStateInProgress {
 		bot := findBotParticipant(match.Participants)
 		if bot != nil && bot.Side == match.Turn {
+			time.Sleep(s.randomDuration(s.aiMoveDelayMin, s.aiMoveDelayMax))
 			aiMoveIndex := s.chooseAIMove(r.Context(), match, bot.Side)
 			if aiMoveIndex >= 0 {
 				aiMatch, aiMove, applyErr := s.store.ApplyMove(matchID, bot.PlayerID, aiMoveIndex)
@@ -250,18 +324,11 @@ func (s *Server) handleSubmitMove(w http.ResponseWriter, r *http.Request) {
 					match = aiMatch
 					s.hub.Broadcast(matchID, "match.move.applied", map[string]any{"match": aiMatch, "move": aiMove})
 
-					marleneLine := "QUE VISAO ESTRATEGICA, SR. GERALDO!!"
-					if s.rng.Intn(100) > 60 {
-						marleneLine = "Ousado! Quebrando paradigmas como sempre!!"
-					}
-					if msg, err := s.store.AddMessage(matchID, model.ChatMessage{
-						ActorID:          model.ActorMarlene,
-						ActorDisplayName: "Marlene",
-						Channel:          model.ChatChannelInternalChat,
-						Body:             marleneLine,
-					}); err == nil {
-						generatedMessages = append(generatedMessages, msg)
-						s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": msg})
+					if commentary := s.buildCommentaryAfterAIMove(matchID, aiMatch, bot.Side); commentary != nil {
+						if msg, err := s.store.AddMessage(matchID, *commentary); err == nil {
+							generatedMessages = append(generatedMessages, msg)
+							s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": msg})
+						}
 					}
 				}
 			}
@@ -279,6 +346,10 @@ func (s *Server) handleSubmitMove(w http.ResponseWriter, r *http.Request) {
 			reason = "draw"
 		}
 		s.hub.Broadcast(matchID, "match.finished", map[string]any{"match": match, "reason": reason})
+
+		s.chatMu.Lock()
+		delete(s.lastGameCommentByMatch, matchID)
+		s.chatMu.Unlock()
 	}
 
 	writeJSON(w, http.StatusOK, model.SubmitMoveResponse{
@@ -367,7 +438,7 @@ func (s *Server) handleSendChatMessage(w http.ResponseWriter, r *http.Request) {
 
 	userMessage, err := s.store.AddMessage(matchID, model.ChatMessage{
 		ActorID:          model.ActorEstagiário,
-		ActorDisplayName: "Estagiário(a)",
+		ActorDisplayName: senderDisplayName(match, req.PlayerID),
 		Channel:          model.ChatChannelInternalChat,
 		Body:             req.Body,
 	})
@@ -397,23 +468,28 @@ func (s *Server) handleMatchWebSocket(w http.ResponseWriter, r *http.Request) {
 	s.hub.ServeMatchSocket(w, r, matchID)
 }
 
-func (s *Server) chooseAIMove(ctx context.Context, snapshot model.MatchSnapshot, aiSide model.PlayerSide) int {
+func (s *Server) chooseAIMove(_ context.Context, snapshot model.MatchSnapshot, aiSide model.PlayerSide) int {
 	available := game.AvailableMoves(snapshot.Board.Cells)
 	if len(available) == 0 {
 		return -1
-	}
-
-	if s.chat != nil && s.chat.Enabled() {
-		if move, err := s.chat.SuggestGeraldoMove(ctx, snapshot, available); err == nil {
-			return move
-		}
 	}
 
 	difficulty := model.AiDifficultyPreAlmoco
 	if snapshot.AiDifficulty != nil {
 		difficulty = *snapshot.AiDifficulty
 	}
-	return game.ChooseMove(snapshot.Board.Cells, aiSide, difficulty)
+
+	// Hard mode is deterministic minimax to create a clear and noticeable difficulty gap.
+	if isHardDifficulty(difficulty) {
+		return game.ChooseMove(snapshot.Board.Cells, aiSide, model.AiDifficultyAvaliacaoAnual)
+	}
+
+	// Easy mode: mostly random with occasional tactical moves.
+	if s.rng.Intn(100) < 30 {
+		return game.ChooseMove(snapshot.Board.Cells, aiSide, model.AiDifficultyAvaliacaoAnual)
+	}
+
+	return game.ChooseMove(snapshot.Board.Cells, aiSide, model.AiDifficultyPreAlmoco)
 }
 
 func (s *Server) maybeBuildAnnouncement(ctx context.Context, snapshot model.MatchSnapshot) *model.OfficeAnnouncement {
@@ -426,7 +502,7 @@ func (s *Server) maybeBuildAnnouncement(ctx context.Context, snapshot model.Matc
 		hint = "resultado_final"
 	}
 
-	body := "Sr. Geraldo: estou supervisionando tudo de perto."
+	body := "Sr. Geraldo: estou supervisionando tudo de perto com rigor estratégico."
 	if s.chat != nil {
 		body = s.chat.GenerateAnnouncement(ctx, snapshot, hint)
 	}
@@ -451,14 +527,201 @@ func findBotParticipant(participants []model.MatchParticipant) *model.MatchParti
 	return nil
 }
 
+type gameCommentCandidate struct {
+	actorID model.ActorID
+	body    string
+}
+
+func (s *Server) buildCommentaryAfterPlayerMove(matchID string, snapshot model.MatchSnapshot, move model.MatchMove) *model.ChatMessage {
+	candidates := make([]gameCommentCandidate, 0, 12)
+
+	if snapshot.State == model.MatchStateFinished && snapshot.Result != nil {
+		switch *snapshot.Result {
+		case model.MatchOutcomeDraw:
+			candidates = append(candidates,
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "PROCESSO ENCAMINHADO A INSTANCIA SUPERIOR. RESULTADO: EMPATE ADMINISTRATIVO."},
+				gameCommentCandidate{actorID: model.ActorPatricia, body: "Empate registrado. RH recomenda uma pausa para cafe antes da proxima demanda."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Empate elegante: ninguem vence, mas todo mundo gera burocracia."},
+			)
+		default:
+			if snapshot.Mode == model.MatchModeVSAI && move.Side == model.PlayerSide(*snapshot.Result) {
+				candidates = append(candidates,
+					gameCommentCandidate{actorID: model.ActorGeraldo, body: "Esse resultado ja estava no meu plano de desenvolvimento da equipe."},
+					gameCommentCandidate{actorID: model.ActorGeraldo, body: "Concedi margem pedagogica. Lideranca moderna funciona assim."},
+					gameCommentCandidate{actorID: model.ActorTulio, body: "Vitoria registrada. A narrativa da chefia ja esta em fase de revisao."},
+					gameCommentCandidate{actorID: model.ActorPatricia, body: "RH confirma o resultado e sugere comemorar com responsabilidade institucional."},
+				)
+			} else {
+				candidates = append(candidates,
+					gameCommentCandidate{actorID: model.ActorTulio, body: "Resultado consolidado. O setor de egos acabou de lotar."},
+					gameCommentCandidate{actorID: model.ActorPatricia, body: "Partida encerrada. Nao esquecam de registrar a percepcao de aprendizado."},
+					gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "PROCESSO FINALIZADO. STATUS ATUALIZADO NO ARQUIVO MORTO."},
+				)
+			}
+		}
+	} else {
+		emitChance := 68
+		if snapshot.Mode != model.MatchModeVSAI {
+			emitChance = 60
+		}
+		if snapshot.MoveCount >= 7 {
+			emitChance = 84
+		}
+		if s.rng.Intn(100) >= emitChance {
+			return nil
+		}
+
+		if snapshot.Mode == model.MatchModeVSAI {
+			candidates = append(candidates,
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Boa escolha. Agora vamos descobrir como a chefia vai reinterpretar isso."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Movimento interessante. O relatorio vai chamar isso de iniciativa proativa."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Gostei da jogada. Ja preparei a versao oficial para quando der problema."},
+				gameCommentCandidate{actorID: model.ActorPatricia, body: "Jogada registrada. RH parabeniza o engajamento no processo."},
+				gameCommentCandidate{actorID: model.ActorPatricia, body: "Anotado no fluxo interno. Mantenham o dialogo civilizado, por favor."},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Continue assim. Estou avaliando seu desempenho com criterios avancados."},
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "MOVIMENTO RECEBIDO. PROTOCOLO ATUALIZADO SEM PENDENCIAS."},
+			)
+		} else {
+			candidates = append(candidates,
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Disputa boa. O setor inteiro ja escolheu lados nos bastidores."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Ritmo forte. Isso aqui virou final de campeonato de planilha."},
+				gameCommentCandidate{actorID: model.ActorPatricia, body: "RH acompanha a rivalidade com interesse tecnico e leve preocupacao."},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Excelente. Competicao saudavel sob minha supervisao qualificada."},
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "ATUALIZACAO PVP PROCESSADA. CONTINUIDADE AUTORIZADA."},
+			)
+		}
+	}
+
+	chosen, ok := s.pickGameComment(matchID, candidates)
+	if !ok {
+		return nil
+	}
+
+	return &model.ChatMessage{
+		ActorID:          chosen.actorID,
+		ActorDisplayName: actorDisplayName(chosen.actorID),
+		Channel:          model.ChatChannelGameCommentary,
+		Body:             chosen.body,
+	}
+}
+
+func (s *Server) buildCommentaryAfterAIMove(matchID string, snapshot model.MatchSnapshot, aiSide model.PlayerSide) *model.ChatMessage {
+	candidates := make([]gameCommentCandidate, 0, 10)
+
+	if snapshot.State == model.MatchStateFinished && snapshot.Result != nil {
+		if model.PlayerSide(*snapshot.Result) == aiSide {
+			candidates = append(candidates,
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "QUE VISAO ESTRATEGICA, SR. GERALDO! RESULTADO IMPECAVEL!"},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "A CHEFIA ENTREGOU EXCELENCIA TECNICA EM FORMATO DE JOGADA!"},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "INCRIVEL! LIDERANCA DE ALTO IMPACTO EM CADA CASA DO TABULEIRO!"},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Como previsto. Execucao precisa e visao de longo prazo."},
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "RESULTADO HOMOLOGADO. CHEFIA VENCEDORA NESTA DEMANDA."},
+			)
+		} else if *snapshot.Result == model.MatchOutcomeDraw {
+			candidates = append(candidates,
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "EMPATE CONFIRMADO. PROCESSO SEGUIRA PARA TRAMITE SUPERIOR."},
+				gameCommentCandidate{actorID: model.ActorPatricia, body: "Empate encerrado com civilidade. RH considera um desfecho maduro."},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "Empate ousado! A chefia claramente pensou varios passos a frente."},
+			)
+		}
+	} else {
+		emitChance := 74
+		if snapshot.MoveCount >= 7 {
+			emitChance = 88
+		}
+		if s.rng.Intn(100) >= emitChance {
+			return nil
+		}
+
+		aiCanWinNext := s.hasImmediateWinningChance(snapshot.Board.Cells, aiSide)
+		playerCanWinNext := s.hasImmediateWinningChance(snapshot.Board.Cells, game.OtherSide(aiSide))
+
+		if aiCanWinNext {
+			candidates = append(candidates,
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "QUE LEITURA TATICA! O SR. GERALDO DEIXOU O TABULEIRO SOB PRESSAO TOTAL!"},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "A CHEFIA ARMOU UM CENARIO BRILHANTE. VISIONARIO COMO SEMPRE!"},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Posicionei a equipe para fechar o processo no proximo movimento."},
+			)
+		} else if playerCanWinNext {
+			candidates = append(candidates,
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "Jogada ousada da chefia. Estrategia de risco calculado com elegancia!"},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Clima tenso. A chefia chamou isso de estrategia adaptativa em tempo real."},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Estou testando sua resiliencia sob pressao. Tudo monitorado."},
+			)
+		} else {
+			candidates = append(candidates,
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "Movimento refinado da chefia. Execucao muito acima da media departamental!"},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "Que dominio de processo, Sr. Geraldo! Impressionante consistencia."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "A chefia jogou com conviccao. A explicacao tecnica chega depois."},
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "JOGADA DA CHEFIA REGISTRADA. PROCESSO SEGUE EM ANALISE."},
+			)
+		}
+	}
+
+	chosen, ok := s.pickGameComment(matchID, candidates)
+	if !ok {
+		return nil
+	}
+
+	return &model.ChatMessage{
+		ActorID:          chosen.actorID,
+		ActorDisplayName: actorDisplayName(chosen.actorID),
+		Channel:          model.ChatChannelGameCommentary,
+		Body:             chosen.body,
+	}
+}
+
+func (s *Server) hasImmediateWinningChance(board []*model.PlayerSide, side model.PlayerSide) bool {
+	available := game.AvailableMoves(board)
+	for _, move := range available {
+		nextBoard, err := game.ApplyMove(board, side, move)
+		if err != nil {
+			continue
+		}
+		winner, _, _ := game.Resolve(nextBoard)
+		if winner != nil && *winner == side {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) pickGameComment(matchID string, candidates []gameCommentCandidate) (gameCommentCandidate, bool) {
+	if len(candidates) == 0 {
+		return gameCommentCandidate{}, false
+	}
+
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+
+	lastBody := s.lastGameCommentByMatch[matchID]
+	filtered := make([]gameCommentCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate.body) == "" {
+			continue
+		}
+		if candidate.body == lastBody {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+	if len(filtered) == 0 {
+		filtered = candidates
+	}
+
+	chosen := filtered[s.rng.Intn(len(filtered))]
+	s.lastGameCommentByMatch[matchID] = chosen.body
+	return chosen, true
+}
+
 func actorDisplayName(actor model.ActorID) string {
 	switch actor {
 	case model.ActorMarlene:
 		return "Marlene"
 	case model.ActorTulio:
-		return "Tulio"
+		return "Túlio"
 	case model.ActorPatricia:
-		return "Patricia de RH"
+		return "Patrícia de RH"
 	case model.ActorSistemaDFGF:
 		return "Sistema DFGF"
 	case model.ActorGeraldo:
@@ -468,14 +731,48 @@ func actorDisplayName(actor model.ActorID) string {
 	}
 }
 
+func senderDisplayName(snapshot model.MatchSnapshot, playerID string) string {
+	cleanPlayerID := strings.TrimSpace(playerID)
+	if cleanPlayerID == "" {
+		return "Estagiario(a)"
+	}
+
+	for _, participant := range snapshot.Participants {
+		if strings.TrimSpace(participant.PlayerID) != cleanPlayerID {
+			continue
+		}
+		name := strings.TrimSpace(participant.DisplayName)
+		if name != "" {
+			return name
+		}
+		break
+	}
+
+	return "Estagiario(a)"
+}
+
 func (s *Server) writeStoreError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		writeError(w, http.StatusNotFound, "NOT_FOUND", "recurso nao encontrado", nil)
 	case errors.Is(err, store.ErrConflict):
-		writeError(w, http.StatusConflict, "CONFLICT", "conflito de estado", nil)
+		message := strings.TrimSpace(err.Error())
+		if strings.HasPrefix(strings.ToLower(message), strings.ToLower(store.ErrConflict.Error())+":") {
+			message = strings.TrimSpace(message[len(store.ErrConflict.Error())+1:])
+		}
+		if message == "" {
+			message = "conflito de estado"
+		}
+		writeError(w, http.StatusConflict, "CONFLICT", message, nil)
 	case errors.Is(err, store.ErrInvalidInput):
-		writeError(w, http.StatusBadRequest, "INVALID_INPUT", "dados invalidos", nil)
+		message := strings.TrimSpace(err.Error())
+		if strings.HasPrefix(strings.ToLower(message), strings.ToLower(store.ErrInvalidInput.Error())+":") {
+			message = strings.TrimSpace(message[len(store.ErrInvalidInput.Error())+1:])
+		}
+		if message == "" {
+			message = "entrada invalida"
+		}
+		writeError(w, http.StatusBadRequest, "INVALID_INPUT", message, nil)
 	case errors.Is(err, store.ErrUnauthorized):
 		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "sessao invalida", nil)
 	case errors.Is(err, store.ErrInvalidState):
@@ -525,20 +822,44 @@ func (s *Server) scheduleReply(matchID, playerID string, snapshot model.MatchSna
 		defer timer.Stop()
 		<-timer.C
 
-		ctx, cancel := context.WithTimeout(context.Background(), 22*time.Second)
-		defer cancel()
+		replyCount := s.randomReplyCount(snapshot.Mode)
+		usedActors := make(map[model.ActorID]struct{}, replyCount)
 
-		recentMessages, _, _ := s.store.ListMessages(matchID, nil, 20)
-		actorID, body := s.chat.GenerateReply(ctx, snapshot, recentMessages, userText)
+		for i := 0; i < replyCount; i++ {
+			currentSnapshot, err := s.store.GetMatch(matchID)
+			if err != nil {
+				return
+			}
 
-		replyMessage, err := s.store.AddMessage(matchID, model.ChatMessage{
-			ActorID:          actorID,
-			ActorDisplayName: actorDisplayName(actorID),
-			Channel:          model.ChatChannelInternalChat,
-			Body:             body,
-		})
-		if err == nil {
-			s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": replyMessage})
+			recentMessages, _, _ := s.store.ListMessages(matchID, nil, 24)
+			allowedActors := s.allowedReplyActors(currentSnapshot.Mode, usedActors)
+
+			// Keep chat latency bounded; if Bedrock is slow/unavailable we fall back quickly.
+			ctx, cancel := context.WithTimeout(context.Background(), s.bedrockTimeout)
+			actorID, body := s.chat.GenerateReply(ctx, currentSnapshot, recentMessages, userText, chat.ReplyOptions{
+				AllowedActors: allowedActors,
+			})
+			cancel()
+
+			replyMessage, err := s.store.AddMessage(matchID, model.ChatMessage{
+				ActorID:          actorID,
+				ActorDisplayName: actorDisplayName(actorID),
+				Channel:          model.ChatChannelChatReply,
+				Body:             body,
+			})
+			if err == nil {
+				usedActors[actorID] = struct{}{}
+				s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": replyMessage})
+			}
+
+			if i == replyCount-1 {
+				break
+			}
+
+			gap := s.randomDuration(s.chatBurstGapMin, s.chatBurstGapMax)
+			gapTimer := time.NewTimer(gap)
+			<-gapTimer.C
+			gapTimer.Stop()
 		}
 	}()
 }
@@ -594,4 +915,100 @@ func (s *Server) releaseReplySlot(matchID, playerID string) {
 	if s.pendingRepliesByMatch[matchID] <= 0 {
 		delete(s.pendingRepliesByMatch, matchID)
 	}
+}
+
+func isHardDifficulty(d model.AiDifficulty) bool {
+	value := strings.ToLower(strings.TrimSpace(string(d)))
+	return value == strings.ToLower(string(model.AiDifficultyAvaliacaoAnual)) ||
+		value == "avaliacao_anual" ||
+		value == "avaliação_anual" ||
+		value == "avaliaã§ã£o_anual"
+}
+
+func (s *Server) randomReplyCount(_ model.MatchMode) int {
+	minReplies := s.chatBurstMinReplies
+	maxReplies := s.chatBurstMaxReplies
+
+	if minReplies < 1 {
+		minReplies = 1
+	}
+	if maxReplies < minReplies {
+		maxReplies = minReplies
+	}
+
+	// Usually more than one reply, but keep occasional single-message realism.
+	if s.rng.Intn(100) < 18 {
+		return 1
+	}
+
+	if maxReplies == minReplies {
+		return minReplies
+	}
+	return minReplies + s.rng.Intn(maxReplies-minReplies+1)
+}
+
+func (s *Server) allowedReplyActors(mode model.MatchMode, used map[model.ActorID]struct{}) []model.ActorID {
+	base := []model.ActorID{
+		model.ActorMarlene,
+		model.ActorTulio,
+		model.ActorPatricia,
+		model.ActorSistemaDFGF,
+		model.ActorGeraldo,
+	}
+
+	// For vs_ai we slightly bias toward Geraldo and Marlene.
+	if mode == model.MatchModeVSAI && s.rng.Intn(100) < 45 {
+		base = []model.ActorID{
+			model.ActorGeraldo,
+			model.ActorMarlene,
+			model.ActorTulio,
+			model.ActorPatricia,
+			model.ActorSistemaDFGF,
+		}
+	}
+
+	available := make([]model.ActorID, 0, len(base))
+	for _, actor := range base {
+		if _, exists := used[actor]; !exists {
+			available = append(available, actor)
+		}
+	}
+	if len(available) == 0 {
+		return base
+	}
+
+	// Give Bedrock some constrained freedom while keeping character variety.
+	target := 3
+	if len(available) < target {
+		target = len(available)
+	}
+	if target <= 0 {
+		return base
+	}
+
+	s.rng.Shuffle(len(available), func(i, j int) {
+		available[i], available[j] = available[j], available[i]
+	})
+	return available[:target]
+}
+
+func (s *Server) randomDuration(minValue, maxValue time.Duration) time.Duration {
+	if maxValue <= minValue {
+		return minValue
+	}
+	return minValue + time.Duration(s.rng.Int63n(int64(maxValue-minValue)))
+}
+
+func getEnvDurationMs(key string, fallback time.Duration) time.Duration {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+
+	return time.Duration(parsed) * time.Millisecond
 }

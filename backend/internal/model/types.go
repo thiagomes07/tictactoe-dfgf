@@ -56,6 +56,8 @@ type ChatChannel string
 const (
 	ChatChannelInternalChat    ChatChannel = "internal_chat"
 	ChatChannelOfficeBroadcast ChatChannel = "office_broadcast"
+	ChatChannelChatReply       ChatChannel = "chat_reply"
+	ChatChannelGameCommentary  ChatChannel = "game_commentary"
 )
 
 type RoomState string
@@ -134,6 +136,16 @@ type RoomSnapshot struct {
 	ExpiresAt     time.Time `json:"expiresAt"`
 }
 
+type RoomListItem struct {
+	RoomCode        string    `json:"roomCode"`
+	Status          RoomState `json:"status"`
+	HostDisplayName string    `json:"hostDisplayName"`
+	ActiveMatchID   *string   `json:"activeMatchId"`
+	CreatedAt       time.Time `json:"createdAt"`
+	ExpiresAt       time.Time `json:"expiresAt"`
+	LastActivityAt  time.Time `json:"lastActivityAt"`
+}
+
 type SessionTicket struct {
 	SessionID           string `json:"sessionId"`
 	PlayerID            string `json:"playerId"`
@@ -209,8 +221,13 @@ type CreateRoomResponse struct {
 }
 
 type GetRoomResponse struct {
-	Room          RoomSnapshot `json:"room"`
-	ActiveMatchID *string      `json:"activeMatchId"`
+	Room            RoomSnapshot `json:"room"`
+	ActiveMatchID   *string      `json:"activeMatchId"`
+	HostDisplayName string       `json:"hostDisplayName"`
+}
+
+type ListRoomsResponse struct {
+	Items []RoomListItem `json:"items"`
 }
 
 type JoinRoomRequest struct {
@@ -222,6 +239,15 @@ type JoinRoomResponse struct {
 	Room          RoomSnapshot  `json:"room"`
 	ActiveMatchID *string       `json:"activeMatchId"`
 	Session       SessionTicket `json:"session"`
+}
+
+type CloseRoomRequest struct {
+	HostPlayerID string `json:"hostPlayerId"`
+}
+
+type CloseRoomResponse struct {
+	RoomCode string `json:"roomCode"`
+	Closed   bool   `json:"closed"`
 }
 
 type ErrorEnvelope struct {

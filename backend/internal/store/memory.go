@@ -35,6 +35,7 @@ type RoomRecord struct {
 	HostDisplayName  string
 	GuestDisplayName *string
 	ActiveMatchID    *string
+	LastActivityAt   time.Time
 }
 
 type SessionRecord struct {
@@ -50,6 +51,11 @@ type Store struct {
 	rooms    map[string]*RoomRecord
 	sessions map[string]*SessionRecord
 }
+
+const (
+	roomIdleTTL        = 30 * time.Minute
+	roomPlayingIdleTTL = 2 * time.Hour
+)
 
 func New() *Store {
 	return &Store{
@@ -68,6 +74,7 @@ func (s *Store) CreateRoom(req model.CreateRoomRequest) (model.RoomSnapshot, mod
 	defer s.mu.Unlock()
 
 	now := time.Now().UTC()
+	s.cleanupInactiveRoomsLocked(now)
 	roomCode := s.generateUniqueRoomCodeLocked()
 	room := model.RoomSnapshot{
 		RoomCode:      roomCode,
@@ -83,6 +90,7 @@ func (s *Store) CreateRoom(req model.CreateRoomRequest) (model.RoomSnapshot, mod
 		HostDisplayName:  req.HostDisplayName,
 		GuestDisplayName: nil,
 		ActiveMatchID:    nil,
+		LastActivityAt:   now,
 	}
 
 	ticket := newSessionTicket(req.HostPlayerID)
@@ -95,16 +103,20 @@ func (s *Store) CreateRoom(req model.CreateRoomRequest) (model.RoomSnapshot, mod
 	return room, ticket, nil
 }
 
-func (s *Store) GetRoom(roomCode string) (model.RoomSnapshot, *string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+func (s *Store) GetRoom(roomCode string) (model.RoomSnapshot, *string, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	s.cleanupInactiveRoomsLocked(now)
 
 	room, ok := s.rooms[roomCode]
 	if !ok {
-		return model.RoomSnapshot{}, nil, ErrNotFound
+		return model.RoomSnapshot{}, nil, "", ErrNotFound
 	}
+	room.LastActivityAt = now
 
-	return cloneRoomSnapshot(room.Snapshot), cloneStringPtr(room.ActiveMatchID), nil
+	return cloneRoomSnapshot(room.Snapshot), cloneStringPtr(room.ActiveMatchID), room.HostDisplayName, nil
 }
 
 func (s *Store) JoinRoom(roomCode string, req model.JoinRoomRequest) (model.RoomSnapshot, *string, model.SessionTicket, error) {
@@ -115,22 +127,53 @@ func (s *Store) JoinRoom(roomCode string, req model.JoinRoomRequest) (model.Room
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	now := time.Now().UTC()
+	s.cleanupInactiveRoomsLocked(now)
+
 	room, ok := s.rooms[roomCode]
 	if !ok {
 		return model.RoomSnapshot{}, nil, model.SessionTicket{}, ErrNotFound
 	}
-
-	if room.Snapshot.GuestPlayerID != nil && *room.Snapshot.GuestPlayerID != req.PlayerID {
-		return model.RoomSnapshot{}, nil, model.SessionTicket{}, ErrConflict
+	if strings.TrimSpace(req.PlayerID) == strings.TrimSpace(room.Snapshot.HostPlayerID) {
+		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: o host nao pode entrar como convidado", ErrInvalidInput)
 	}
 
-	now := time.Now().UTC()
+	guestDisplayName := strings.TrimSpace(req.DisplayName)
+	hostDisplayName := strings.TrimSpace(room.HostDisplayName)
+	if guestDisplayName != "" && hostDisplayName != "" && strings.EqualFold(guestDisplayName, hostDisplayName) {
+		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: o nome do convidado nao pode ser igual ao do host", ErrInvalidInput)
+	}
+
+	if room.Snapshot.GuestPlayerID != nil && *room.Snapshot.GuestPlayerID != req.PlayerID {
+		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: sala ja possui dois participantes", ErrConflict)
+	}
+
 	if room.Snapshot.GuestPlayerID == nil {
 		guestID := req.PlayerID
 		room.Snapshot.GuestPlayerID = &guestID
-		room.GuestDisplayName = &req.DisplayName
+		room.GuestDisplayName = &guestDisplayName
 		if room.Snapshot.Status != model.RoomStatePlaying {
 			room.Snapshot.Status = model.RoomStateReady
+		}
+	} else {
+		room.GuestDisplayName = &guestDisplayName
+	}
+	room.LastActivityAt = now
+
+	if room.ActiveMatchID != nil {
+		if rec, exists := s.matches[*room.ActiveMatchID]; exists && rec.Snapshot.Mode == model.MatchModePVPRemote {
+			guestIndex := slices.IndexFunc(rec.Snapshot.Participants, func(p model.MatchParticipant) bool {
+				return !p.IsHost && !p.IsBot
+			})
+			if guestIndex >= 0 {
+				rec.Snapshot.Participants[guestIndex].PlayerID = req.PlayerID
+				rec.Snapshot.Participants[guestIndex].DisplayName = guestDisplayName
+				rec.Snapshot.Participants[guestIndex].IsConnected = true
+			}
+			if rec.Snapshot.State == model.MatchStateWaitingRoom {
+				rec.Snapshot.State = model.MatchStateInProgress
+			}
+			room.Snapshot.Status = model.RoomStatePlaying
 		}
 	}
 
@@ -142,6 +185,28 @@ func (s *Store) JoinRoom(roomCode string, req model.JoinRoomRequest) (model.Room
 	}
 
 	return cloneRoomSnapshot(room.Snapshot), cloneStringPtr(room.ActiveMatchID), ticket, nil
+}
+
+func (s *Store) CloseRoom(roomCode string, hostPlayerID string) (*string, error) {
+	if strings.TrimSpace(roomCode) == "" || strings.TrimSpace(hostPlayerID) == "" {
+		return nil, fmt.Errorf("%w: roomCode and hostPlayerId are required", ErrInvalidInput)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	room, ok := s.rooms[roomCode]
+	if !ok {
+		return nil, ErrNotFound
+	}
+
+	if strings.TrimSpace(room.Snapshot.HostPlayerID) != strings.TrimSpace(hostPlayerID) {
+		return nil, ErrUnauthorized
+	}
+
+	activeMatchID := cloneStringPtr(room.ActiveMatchID)
+	s.removeRoomLocked(roomCode)
+	return activeMatchID, nil
 }
 
 func (s *Store) CreateMatch(req model.CreateMatchRequest) (model.MatchSnapshot, *model.RoomSnapshot, model.SessionTicket, error) {
@@ -156,6 +221,7 @@ func (s *Store) CreateMatch(req model.CreateMatchRequest) (model.MatchSnapshot, 
 	defer s.mu.Unlock()
 
 	now := time.Now().UTC()
+	s.cleanupInactiveRoomsLocked(now)
 	matchID := newID("match")
 	protocolCode := ""
 	var roomResp *model.RoomSnapshot
@@ -283,7 +349,12 @@ func (s *Store) CreateMatch(req model.CreateMatchRequest) (model.MatchSnapshot, 
 
 	if roomRecord != nil {
 		roomRecord.ActiveMatchID = &matchID
-		roomRecord.Snapshot.Status = model.RoomStatePlaying
+		if state == model.MatchStateWaitingRoom {
+			roomRecord.Snapshot.Status = model.RoomStateReady
+		} else {
+			roomRecord.Snapshot.Status = model.RoomStatePlaying
+		}
+		roomRecord.LastActivityAt = now
 		roomCopy := cloneRoomSnapshot(roomRecord.Snapshot)
 		roomResp = &roomCopy
 	}
@@ -524,6 +595,55 @@ func (s *Store) MatchParticipants(matchID string) ([]model.MatchParticipant, err
 	return participants, nil
 }
 
+func (s *Store) ListRooms(onlyAvailable bool, limit int) []model.RoomListItem {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	s.cleanupInactiveRoomsLocked(now)
+
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 300 {
+		limit = 300
+	}
+
+	items := make([]model.RoomListItem, 0, len(s.rooms))
+	for _, room := range s.rooms {
+		if onlyAvailable {
+			if room.Snapshot.Status != model.RoomStateWaitingGuest && room.Snapshot.Status != model.RoomStateReady {
+				continue
+			}
+		}
+
+		items = append(items, model.RoomListItem{
+			RoomCode:        room.Snapshot.RoomCode,
+			Status:          room.Snapshot.Status,
+			HostDisplayName: room.HostDisplayName,
+			ActiveMatchID:   cloneStringPtr(room.ActiveMatchID),
+			CreatedAt:       room.Snapshot.CreatedAt,
+			ExpiresAt:       room.Snapshot.ExpiresAt,
+			LastActivityAt:  room.LastActivityAt,
+		})
+	}
+
+	slices.SortFunc(items, func(a, b model.RoomListItem) int {
+		if a.LastActivityAt.After(b.LastActivityAt) {
+			return -1
+		}
+		if a.LastActivityAt.Before(b.LastActivityAt) {
+			return 1
+		}
+		return strings.Compare(a.RoomCode, b.RoomCode)
+	})
+
+	if len(items) > limit {
+		items = items[:limit]
+	}
+	return items
+}
+
 func (s *Store) generateUniqueRoomCodeLocked() string {
 	for {
 		n, _ := rand.Int(rand.Reader, big.NewInt(9000))
@@ -553,6 +673,45 @@ func cloneRoomSnapshot(in model.RoomSnapshot) model.RoomSnapshot {
 	copy := in
 	copy.GuestPlayerID = cloneStringPtr(in.GuestPlayerID)
 	return copy
+}
+
+func (s *Store) cleanupInactiveRoomsLocked(now time.Time) {
+	for roomCode, room := range s.rooms {
+		if now.After(room.Snapshot.ExpiresAt) {
+			s.removeRoomLocked(roomCode)
+			continue
+		}
+
+		idleFor := now.Sub(room.LastActivityAt)
+		if room.Snapshot.Status == model.RoomStatePlaying {
+			if idleFor > roomPlayingIdleTTL {
+				s.removeRoomLocked(roomCode)
+			}
+			continue
+		}
+
+		if idleFor > roomIdleTTL {
+			s.removeRoomLocked(roomCode)
+		}
+	}
+}
+
+func (s *Store) removeRoomLocked(roomCode string) {
+	room, ok := s.rooms[roomCode]
+	if !ok {
+		return
+	}
+
+	if room.ActiveMatchID != nil {
+		delete(s.matches, *room.ActiveMatchID)
+	}
+	delete(s.rooms, roomCode)
+
+	for sessionID, session := range s.sessions {
+		if session.RoomCode != nil && *session.RoomCode == roomCode {
+			delete(s.sessions, sessionID)
+		}
+	}
 }
 
 func cloneStringPtr(in *string) *string {

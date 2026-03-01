@@ -13,7 +13,7 @@ const WIZARD_STEPS = [
     text: "Voce esta em um escritorio brasileiro dos anos 90, no Departamento Federal de Gestão de Formulários. Aqui, cada Formulário 3x3-B funciona como um jogo da velha e cada partida representa uma demanda oficial de trabalho."
   },
   {
-    title: "Como a demanda e processada",
+    title: "Como a demanda é processada",
     text: "Cada jogada registra um despacho no processo. Voce pode jogar em tres modalidades: Estagiário(a) vs Sr. Geraldo (IA), Player vs Player Local na mesma maquina ou Player vs Player Remoto por sala com codigo de protocolo DFGF-0000."
   },
   {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"regexp"
@@ -20,7 +21,7 @@ import (
 
 const (
 	defaultRegion      = "us-east-1"
-	defaultModelID     = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+	defaultModelID     = "us.anthropic.claude-sonnet-4-20250514-v1:0"
 	defaultMaxTokens   = 4096
 	defaultTemperature = 0.3
 )
@@ -32,6 +33,10 @@ type Service struct {
 	temperature float64
 	enabled     bool
 	rng         *rand.Rand
+}
+
+type ReplyOptions struct {
+	AllowedActors []model.ActorID
 }
 
 func NewService(ctx context.Context) *Service {
@@ -50,16 +55,25 @@ func NewService(ctx context.Context) *Service {
 	}
 
 	if !enabled {
+		log.Printf("chat: bedrock disabled via BEDROCK_ENABLED=false")
 		return svc
 	}
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
 	if err != nil {
 		svc.enabled = false
+		log.Printf("chat: failed to load AWS config (region=%s): %v", region, err)
 		return svc
 	}
 
 	svc.bedrock = NewBedrockClient(bedrockruntime.NewFromConfig(cfg), modelID, maxTokens, temperature)
+	log.Printf(
+		"chat: bedrock enabled (region=%s, model=%s, maxTokens=%d, temperature=%.2f)",
+		region,
+		modelID,
+		maxTokens,
+		temperature,
+	)
 	return svc
 }
 
@@ -67,20 +81,29 @@ func (s *Service) Enabled() bool {
 	return s.enabled && s.bedrock != nil
 }
 
-func (s *Service) GenerateReply(ctx context.Context, snapshot model.MatchSnapshot, recent []model.ChatMessage, userText string) (model.ActorID, string) {
-	fallbackActor, fallbackBody := fallbackUserReply(s.rng, userText)
+func (s *Service) GenerateReply(
+	ctx context.Context,
+	snapshot model.MatchSnapshot,
+	recent []model.ChatMessage,
+	userText string,
+	options ReplyOptions,
+) (model.ActorID, string) {
+	fallbackActor, fallbackBody := fallbackUserReply(s.rng, userText, options.AllowedActors)
 	if !s.Enabled() {
+		log.Printf("chat: bedrock disabled, using fallback reply (match=%s)", snapshot.MatchID)
 		return fallbackActor, fallbackBody
 	}
 
-	prompt := buildChatReplyPrompt(snapshot, recent, userText)
+	prompt := buildChatReplyPrompt(snapshot, recent, userText, options.AllowedActors)
 	response, err := s.bedrock.Generate(ctx, prompt, 320)
 	if err != nil {
+		log.Printf("chat: bedrock reply error (match=%s): %v; using fallback", snapshot.MatchID, err)
 		return fallbackActor, fallbackBody
 	}
 
 	actorID, body, ok := parseReplyJSON(response)
-	if !ok {
+	if !ok || !actorAllowed(actorID, options.AllowedActors) {
+		log.Printf("chat: invalid bedrock reply (match=%s), using fallback. payload=%q", snapshot.MatchID, response)
 		return fallbackActor, fallbackBody
 	}
 
@@ -90,12 +113,14 @@ func (s *Service) GenerateReply(ctx context.Context, snapshot model.MatchSnapsho
 func (s *Service) GenerateAnnouncement(ctx context.Context, snapshot model.MatchSnapshot, hint string) string {
 	fallback := fallbackAnnouncement(s.rng)
 	if !s.Enabled() {
+		log.Printf("chat: bedrock disabled for announcement (match=%s), using fallback", snapshot.MatchID)
 		return fallback
 	}
 
 	prompt := buildAnnouncementPrompt(snapshot, hint)
 	response, err := s.bedrock.Generate(ctx, prompt, 120)
 	if err != nil {
+		log.Printf("chat: announcement generation error (match=%s): %v; using fallback", snapshot.MatchID, err)
 		return fallback
 	}
 
@@ -115,6 +140,7 @@ func (s *Service) SuggestGeraldoMove(ctx context.Context, snapshot model.MatchSn
 	prompt := buildMovePrompt(snapshot, available)
 	response, err := s.bedrock.Generate(ctx, prompt, 80)
 	if err != nil {
+		log.Printf("chat: bedrock move suggestion error (match=%s): %v", snapshot.MatchID, err)
 		return -1, err
 	}
 
@@ -201,6 +227,18 @@ func isAllowedActor(actor model.ActorID) bool {
 	}
 }
 
+func actorAllowed(actor model.ActorID, allowedActors []model.ActorID) bool {
+	if len(allowedActors) == 0 {
+		return true
+	}
+	for _, allowed := range allowedActors {
+		if actor == allowed {
+			return true
+		}
+	}
+	return false
+}
+
 func getEnv(key, fallback string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -255,29 +293,52 @@ func pickRandom(rng *rand.Rand, values []string) string {
 	return values[rng.Intn(len(values))]
 }
 
-func fallbackUserReply(rng *rand.Rand, userText string) (model.ActorID, string) {
+func fallbackUserReply(rng *rand.Rand, userText string, allowedActors []model.ActorID) (model.ActorID, string) {
 	text := strings.ToLower(userText)
-	if strings.Contains(text, "cafe") {
-		return model.ActorPatricia, "Atualizacao de RH: chamado do cafe foi priorizado e escalado."
+	if (strings.Contains(text, "cafe") || strings.Contains(text, "cafe")) && actorAllowed(model.ActorPatricia, allowedActors) {
+		return model.ActorPatricia, "Atualizacao de RH: chamado do cafe foi priorizado e encaminhado com urgencia moderada."
 	}
-	if strings.Contains(text, "geraldo") {
-		return model.ActorMarlene, "Excelente referencia ao Sr. Geraldo. Lideranca reconhece postura proativa."
+	if strings.Contains(text, "geraldo") && actorAllowed(model.ActorMarlene, allowedActors) {
+		return model.ActorMarlene, "Excelente referencia ao Sr. Geraldo. A lideranca reconhece sua postura proativa."
 	}
-	if strings.Contains(text, "promoc") {
-		return model.ActorTulio, "Promocao depende de KPI, comite e alinhamento cosmico da semana."
+	if strings.Contains(text, "promoc") && actorAllowed(model.ActorTulio, allowedActors) {
+		return model.ActorTulio, "Promocao depende de KPI, comite, orcamento e alinhamento cosmico da semana."
+	}
+	if strings.Contains(text, "prazo") && actorAllowed(model.ActorSistemaDFGF, allowedActors) {
+		return model.ActorSistemaDFGF, "PRAZO REVISADO. NOVO CENARIO: 12 DIAS UTEIS, SUJEITO A REAVALIACAO DO RITO."
+	}
+	if strings.Contains(text, "rh") && actorAllowed(model.ActorPatricia, allowedActors) {
+		return model.ActorPatricia, "RH registra sua solicitacao. Se necessario, abrimos mediacao com ata e cafe."
 	}
 
 	pool := []struct {
 		actor model.ActorID
 		body  string
 	}{
-		{model.ActorMarlene, "Se o Sr. Geraldo concordar, ja considero essa rodada historica."},
-		{model.ActorTulio, "Tudo sob controle, segundo o relatorio que ninguem leu inteiro."},
+		{model.ActorMarlene, "Se o Sr. Geraldo concordar, ja considero essa rodada historica para o departamento."},
+		{model.ActorMarlene, "Excelente colocacao. A chefia comentou algo parecido no corredor hoje cedo."},
+		{model.ActorTulio, "Tudo sob controle, segundo o relatorio que ninguem leu ate o fim."},
+		{model.ActorTulio, "Boa ideia. Agora falta apenas sobreviver a interpretacao da chefia."},
 		{model.ActorPatricia, "Registrado. RH agradece sua colaboracao com o clima organizacional."},
+		{model.ActorPatricia, "Anotado. Se o dialogo escalar, abrimos um fluxo formal de acompanhamento."},
 		{model.ActorSistemaDFGF, "MENSAGEM RECEBIDA. RETORNO FORMAL PREVISTO EM 12 DIAS UTEIS."},
+		{model.ActorGeraldo, "Perfeito. Era exatamente essa diretriz que eu estava prestes a oficializar."},
 	}
 
-	selected := pool[rng.Intn(len(pool))]
+	filteredPool := make([]struct {
+		actor model.ActorID
+		body  string
+	}, 0, len(pool))
+	for _, item := range pool {
+		if actorAllowed(item.actor, allowedActors) {
+			filteredPool = append(filteredPool, item)
+		}
+	}
+	if len(filteredPool) == 0 {
+		filteredPool = pool
+	}
+
+	selected := filteredPool[rng.Intn(len(filteredPool))]
 	return selected.actor, selected.body
 }
 
@@ -285,29 +346,70 @@ func fallbackAnnouncement(rng *rand.Rand) string {
 	messages := []string{
 		"Sr. Geraldo informa: esta rodada esta sob controle estrategico integral.",
 		"Sr. Geraldo informa: desempenho em linha com o plano mestre de 2009.",
-		"Sr. Geraldo informa: resultados adversos tambem sao parte da lideranca moderna.",
+		"Sr. Geraldo informa: resultados adversos tambem fazem parte da lideranca moderna.",
+		"Sr. Geraldo informa: mantenham a calma, o metodo existe mesmo quando nao parece.",
+		"Sr. Geraldo informa: produtividade alta e coerencia opcional, conforme diretriz vigente.",
 	}
 	return pickRandom(rng, messages)
 }
 
-func buildChatReplyPrompt(snapshot model.MatchSnapshot, recent []model.ChatMessage, userText string) string {
+func buildChatReplyPrompt(snapshot model.MatchSnapshot, recent []model.ChatMessage, userText string, allowedActors []model.ActorID) string {
 	lastMessages := make([]string, 0, 6)
 	start := max(0, len(recent)-6)
 	for _, msg := range recent[start:] {
 		lastMessages = append(lastMessages, fmt.Sprintf("- %s: %s", msg.ActorID, msg.Body))
 	}
+	if len(lastMessages) == 0 {
+		lastMessages = append(lastMessages, "- sistema_dfgf: PROCESSO ABERTO. AGUARDANDO PREENCHIMENTO.")
+	}
+
+	allowed := []string{"marlene", "tulio", "patricia", "sistema_dfgf", "geraldo"}
+	if len(allowedActors) > 0 {
+		allowed = make([]string, 0, len(allowedActors))
+		for _, actor := range allowedActors {
+			allowed = append(allowed, string(actor))
+		}
+	}
+
+	modeContext := "Partida em andamento no Formulario 3x3-B."
+	switch snapshot.Mode {
+	case model.MatchModeVSAI:
+		modeContext = "Modo Estagiario vs Sr. Geraldo. Ambiente competitivo entre estagiario e chefia."
+	case model.MatchModePVPLocal:
+		modeContext = "Modo Player vs Player Local. Dois estagiarios na mesma maquina."
+	case model.MatchModePVPRemote:
+		modeContext = "Modo Player vs Player Remoto. Sala compartilhada com protocolo oficial."
+	}
+
+	boardSummary := summarizeBoard(snapshot)
 
 	return fmt.Sprintf(
-		"Voce e um gerador de falas para um chat corporativo satirico em portugues.\n"+
-			"Contexto do jogo: modo=%s, protocolo=%s, turno=%s.\n"+
-			"Personagens validos para responder: marlene, tulio, patricia, sistema_dfgf, geraldo.\n"+
+		"Voce eh roteirista de chat corporativo satirico em portugues brasileiro para o universo Burocracia S.A.\n"+
+			"%s\n"+
+			"Contexto do jogo: modo=%s, protocolo=%s, turno=%s, status=%s, resultado=%v.\n"+
+			"Resumo do tabuleiro: %s\n"+
+			"Atores permitidos nesta resposta: %s\n"+
+			"PERSONALIDADES OBRIGATORIAS:\n"+
+			"- marlene: bajuladora da chefia, puxa-saco do Geraldo, exagera elogios.\n"+
+			"- tulio: sarcastico, ironia seca, comentario passivo-agressivo inteligente.\n"+
+			"- patricia: RH cordial, lembra regras/processos/clima e temas fora de contexto.\n"+
+			"- sistema_dfgf: tom robotico em CAIXA ALTA, burocratico, quase sem emocao.\n"+
+			"- geraldo: confiante, autoritario, fala como genio mesmo quando erra.\n"+
 			"Mensagem do usuario: %q\n"+
 			"Historico recente:\n%s\n"+
+			"Responda com humor sutil e natural, sem repetir frases prontas.\n"+
 			"Responda EXCLUSIVAMENTE JSON no formato: {\"actorId\":\"marlene\",\"body\":\"...\"}.\n"+
-			"Texto curto (max 180 chars), sem markdown.",
+			"Escolha EXATAMENTE UM ator da lista permitida.\n"+
+			"Use portugues brasileiro com acentuacao correta.\n"+
+			"Texto curto (max. 220 caracteres), sem markdown e sem emojis.",
+		modeContext,
 		snapshot.Mode,
 		snapshot.ProtocolCode,
 		snapshot.Turn,
+		snapshot.State,
+		snapshot.Result,
+		boardSummary,
+		strings.Join(allowed, ", "),
 		userText,
 		strings.Join(lastMessages, "\n"),
 	)
@@ -345,4 +447,19 @@ func buildAnnouncementPrompt(snapshot model.MatchSnapshot, hint string) string {
 		snapshot.State,
 		hint,
 	)
+}
+
+func summarizeBoard(snapshot model.MatchSnapshot) string {
+	if len(snapshot.Board.Cells) == 0 {
+		return "tabuleiro vazio"
+	}
+	cells := make([]string, len(snapshot.Board.Cells))
+	for i, cell := range snapshot.Board.Cells {
+		if cell == nil {
+			cells[i] = "_"
+			continue
+		}
+		cells[i] = string(*cell)
+	}
+	return strings.Join(cells, "")
 }

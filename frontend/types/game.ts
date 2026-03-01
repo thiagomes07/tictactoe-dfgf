@@ -5,7 +5,7 @@ export type CellMark = PlayerSide | null;
 export type MatchState = "waiting_room" | "in_progress" | "finished";
 export type MatchOutcome = "x" | "o" | "draw" | null;
 export type ActorId = "estagiario" | "geraldo" | "marlene" | "tulio" | "patricia" | "sistema_dfgf";
-export type ChatChannel = "internal_chat" | "office_broadcast";
+export type ChatChannel = "internal_chat" | "office_broadcast" | "chat_reply" | "game_commentary";
 export type RoomState = "waiting_guest" | "ready" | "playing" | "closed";
 
 export interface BoardSnapshot {
@@ -73,6 +73,16 @@ export interface RoomSnapshot {
   guestPlayerId: string | null;
   createdAt: string;
   expiresAt: string;
+}
+
+export interface RoomListItem {
+  roomCode: string;
+  status: RoomState;
+  hostDisplayName: string;
+  activeMatchId: string | null;
+  createdAt: string;
+  expiresAt: string;
+  lastActivityAt: string;
 }
 
 export type ArchiveStatus = "DEFERIDO" | "INDEFERIDO" | "ARQUIVADO";

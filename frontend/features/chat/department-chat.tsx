@@ -11,6 +11,16 @@ interface DepartmentChatProps {
   sendCooldownMs?: number;
 }
 
+function initialsFromName(name: string, fallback: string): string {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) return fallback;
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
 export function DepartmentChat({
   protocolCode,
   messages,
@@ -47,19 +57,35 @@ export function DepartmentChat({
       <div className="chat-stream" role="log" aria-live="polite">
         {orderedMessages.map((message) => {
           const actor = ACTORS[message.actorId];
+          const displayName = message.actorDisplayName?.trim() ? message.actorDisplayName : actor.name;
+          const avatarInitials =
+            message.actorId === "estagiario" ? initialsFromName(displayName, actor.initials) : actor.initials;
           const isSystem = actor.system;
           const isBoss = actor.id === "geraldo";
+          const intentLabel =
+            message.kind === "reply"
+              ? "RESPONDENDO VOCE"
+              : message.kind === "game_commentary"
+                ? "COMENTARIO DE JOGO"
+                : "TRAMITE INTERNO";
+          const intentClass =
+            message.kind === "reply"
+              ? "chat-intent-reply"
+              : message.kind === "game_commentary"
+                ? "chat-intent-game"
+                : "chat-intent-general";
 
           return (
             <article key={message.id} className="chat-item">
               <div className="chat-avatar" style={{ backgroundColor: actor.avatarColor }} aria-hidden="true">
-                {actor.initials}
+                {avatarInitials}
               </div>
 
               <div>
                 <div className="chat-meta">
-                  {message.createdAt} - {actor.name} <span className="chat-role">({actor.role})</span>
+                  {message.createdAt} - {displayName} <span className="chat-role">({actor.role})</span>
                 </div>
+                <div className={`chat-intent-badge ${intentClass}`}>{intentLabel}</div>
                 <div className={`chat-body ${isSystem ? "chat-system" : ""} ${isBoss ? "chat-boss" : ""}`}>
                   {message.text}
                 </div>

@@ -6,6 +6,7 @@ import type {
   MatchSnapshot,
   OfficeAnnouncement,
   PlayerSide,
+  RoomListItem,
   RoomSnapshot
 } from "@/types/game";
 
@@ -17,7 +18,8 @@ export const API_ROUTES = {
   matchChatMessages: (matchId: string) => `/v1/matches/${encodeURIComponent(matchId)}/chat/messages`,
   rooms: "/v1/rooms",
   roomByCode: (roomCode: string) => `/v1/rooms/${encodeURIComponent(roomCode)}`,
-  roomJoin: (roomCode: string) => `/v1/rooms/${encodeURIComponent(roomCode)}/join`
+  roomJoin: (roomCode: string) => `/v1/rooms/${encodeURIComponent(roomCode)}/join`,
+  roomClose: (roomCode: string) => `/v1/rooms/${encodeURIComponent(roomCode)}/close`
 } as const;
 
 export const WS_ROUTES = {
@@ -101,6 +103,11 @@ export interface CreateRoomResponse {
 export interface GetRoomResponse {
   room: RoomSnapshot;
   activeMatchId: string | null;
+  hostDisplayName: string;
+}
+
+export interface ListRoomsResponse {
+  items: RoomListItem[];
 }
 
 export interface JoinRoomRequest {
@@ -112,6 +119,15 @@ export interface JoinRoomResponse {
   room: RoomSnapshot;
   activeMatchId: string | null;
   session: SessionTicket;
+}
+
+export interface CloseRoomRequest {
+  hostPlayerId: string;
+}
+
+export interface CloseRoomResponse {
+  roomCode: string;
+  closed: boolean;
 }
 
 interface WsEnvelope<TType extends string, TPayload> {
@@ -127,6 +143,7 @@ export type MatchServerEvent =
   | WsEnvelope<"chat.message.created", { message: ChatMessage }>
   | WsEnvelope<"announcement.created", { announcement: OfficeAnnouncement }>
   | WsEnvelope<"room.updated", { room: RoomSnapshot }>
+  | WsEnvelope<"room.closed", { roomCode: string; reason: "host_left" | "manual_close"; message?: string }>
   | WsEnvelope<"error", { code: string; message: string }>;
 
 export type MatchClientEvent =
@@ -141,6 +158,7 @@ const SERVER_EVENT_TYPES = new Set<MatchServerEvent["type"]>([
   "chat.message.created",
   "announcement.created",
   "room.updated",
+  "room.closed",
   "error"
 ]);
 
