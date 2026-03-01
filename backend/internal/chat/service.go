@@ -295,33 +295,33 @@ func pickRandom(rng *rand.Rand, values []string) string {
 
 func fallbackUserReply(rng *rand.Rand, userText string, allowedActors []model.ActorID) (model.ActorID, string) {
 	text := strings.ToLower(userText)
-	if (strings.Contains(text, "cafe") || strings.Contains(text, "cafe")) && actorAllowed(model.ActorPatricia, allowedActors) {
-		return model.ActorPatricia, "Atualizacao de RH: chamado do cafe foi priorizado e encaminhado com urgencia moderada."
+	if (strings.Contains(text, "cafe") || strings.Contains(text, "café")) && actorAllowed(model.ActorPatricia, allowedActors) {
+		return model.ActorPatricia, "Atualização de RH: chamado do café foi priorizado e encaminhado com urgência moderada."
 	}
 	if strings.Contains(text, "geraldo") && actorAllowed(model.ActorMarlene, allowedActors) {
-		return model.ActorMarlene, "Excelente referencia ao Sr. Geraldo. A lideranca reconhece sua postura proativa."
+		return model.ActorMarlene, "Excelente referência ao Sr. Geraldo. A liderança reconhece sua postura proativa."
 	}
 	if strings.Contains(text, "promoc") && actorAllowed(model.ActorTulio, allowedActors) {
-		return model.ActorTulio, "Promocao depende de KPI, comite, orcamento e alinhamento cosmico da semana."
+		return model.ActorTulio, "Promoção depende de KPI, comitê, orçamento e alinhamento cósmico da semana."
 	}
 	if strings.Contains(text, "prazo") && actorAllowed(model.ActorSistemaDFGF, allowedActors) {
-		return model.ActorSistemaDFGF, "PRAZO REVISADO. NOVO CENARIO: 12 DIAS UTEIS, SUJEITO A REAVALIACAO DO RITO."
+		return model.ActorSistemaDFGF, "PRAZO REVISADO. NOVO CENÁRIO: 12 DIAS ÚTEIS, SUJEITO A REAVALIAÇÃO DO RITO."
 	}
 	if strings.Contains(text, "rh") && actorAllowed(model.ActorPatricia, allowedActors) {
-		return model.ActorPatricia, "RH registra sua solicitacao. Se necessario, abrimos mediacao com ata e cafe."
+		return model.ActorPatricia, "RH registra sua solicitação. Se necessário, abrimos mediação com ata e café."
 	}
 
 	pool := []struct {
 		actor model.ActorID
 		body  string
 	}{
-		{model.ActorMarlene, "Se o Sr. Geraldo concordar, ja considero essa rodada historica para o departamento."},
-		{model.ActorMarlene, "Excelente colocacao. A chefia comentou algo parecido no corredor hoje cedo."},
-		{model.ActorTulio, "Tudo sob controle, segundo o relatorio que ninguem leu ate o fim."},
-		{model.ActorTulio, "Boa ideia. Agora falta apenas sobreviver a interpretacao da chefia."},
-		{model.ActorPatricia, "Registrado. RH agradece sua colaboracao com o clima organizacional."},
-		{model.ActorPatricia, "Anotado. Se o dialogo escalar, abrimos um fluxo formal de acompanhamento."},
-		{model.ActorSistemaDFGF, "MENSAGEM RECEBIDA. RETORNO FORMAL PREVISTO EM 12 DIAS UTEIS."},
+		{model.ActorMarlene, "Se o Sr. Geraldo concordar, já considero essa rodada histórica para o departamento."},
+		{model.ActorMarlene, "Excelente colocação. A chefia comentou algo parecido no corredor hoje cedo."},
+		{model.ActorTulio, "Tudo sob controle, segundo o relatório que ninguém leu até o fim."},
+		{model.ActorTulio, "Boa ideia. Agora falta apenas sobreviver à interpretação da chefia."},
+		{model.ActorPatricia, "Registrado. RH agradece sua colaboração com o clima organizacional."},
+		{model.ActorPatricia, "Anotado. Se o diálogo escalar, abrimos um fluxo formal de acompanhamento."},
+		{model.ActorSistemaDFGF, "MENSAGEM RECEBIDA. RETORNO FORMAL PREVISTO EM 12 DIAS ÚTEIS."},
 		{model.ActorGeraldo, "Perfeito. Era exatamente essa diretriz que eu estava prestes a oficializar."},
 	}
 
@@ -344,11 +344,11 @@ func fallbackUserReply(rng *rand.Rand, userText string, allowedActors []model.Ac
 
 func fallbackAnnouncement(rng *rand.Rand) string {
 	messages := []string{
-		"Sr. Geraldo informa: esta rodada esta sob controle estrategico integral.",
+		"Sr. Geraldo informa: esta rodada está sob controle estratégico integral.",
 		"Sr. Geraldo informa: desempenho em linha com o plano mestre de 2009.",
-		"Sr. Geraldo informa: resultados adversos tambem fazem parte da lideranca moderna.",
-		"Sr. Geraldo informa: mantenham a calma, o metodo existe mesmo quando nao parece.",
-		"Sr. Geraldo informa: produtividade alta e coerencia opcional, conforme diretriz vigente.",
+		"Sr. Geraldo informa: resultados adversos também fazem parte da liderança moderna.",
+		"Sr. Geraldo informa: mantenham a calma, o método existe mesmo quando não parece.",
+		"Sr. Geraldo informa: produtividade alta e coerência opcional, conforme diretriz vigente.",
 	}
 	return pickRandom(rng, messages)
 }
@@ -371,12 +371,12 @@ func buildChatReplyPrompt(snapshot model.MatchSnapshot, recent []model.ChatMessa
 		}
 	}
 
-	modeContext := "Partida em andamento no Formulario 3x3-B."
+	modeContext := "Partida em andamento no Formulário 3x3-B."
 	switch snapshot.Mode {
 	case model.MatchModeVSAI:
-		modeContext = "Modo Estagiario vs Sr. Geraldo. Ambiente competitivo entre estagiario e chefia."
+		modeContext = "Modo Estagiário vs Sr. Geraldo. Ambiente competitivo entre estagiário e chefia."
 	case model.MatchModePVPLocal:
-		modeContext = "Modo Player vs Player Local. Dois estagiarios na mesma maquina."
+		modeContext = "Modo Player vs Player Local. Dois estagiários na mesma máquina."
 	case model.MatchModePVPRemote:
 		modeContext = "Modo Player vs Player Remoto. Sala compartilhada com protocolo oficial."
 	}
@@ -384,23 +384,23 @@ func buildChatReplyPrompt(snapshot model.MatchSnapshot, recent []model.ChatMessa
 	boardSummary := summarizeBoard(snapshot)
 
 	return fmt.Sprintf(
-		"Voce eh roteirista de chat corporativo satirico em portugues brasileiro para o universo Burocracia S.A.\n"+
+		"Você é roteirista de chat corporativo satírico em português brasileiro para o universo Burocracia S.A.\n"+
 			"%s\n"+
 			"Contexto do jogo: modo=%s, protocolo=%s, turno=%s, status=%s, resultado=%v.\n"+
 			"Resumo do tabuleiro: %s\n"+
 			"Atores permitidos nesta resposta: %s\n"+
 			"PERSONALIDADES OBRIGATORIAS:\n"+
 			"- marlene: bajuladora da chefia, puxa-saco do Geraldo, exagera elogios.\n"+
-			"- tulio: sarcastico, ironia seca, comentario passivo-agressivo inteligente.\n"+
+			"- tulio: sarcástico, ironia seca, comentário passivo-agressivo inteligente.\n"+
 			"- patricia: RH cordial, lembra regras/processos/clima e temas fora de contexto.\n"+
-			"- sistema_dfgf: tom robotico em CAIXA ALTA, burocratico, quase sem emocao.\n"+
-			"- geraldo: confiante, autoritario, fala como genio mesmo quando erra.\n"+
+			"- sistema_dfgf: tom robótico em CAIXA ALTA, burocrático, quase sem emoção.\n"+
+			"- geraldo: confiante, autoritário, fala como gênio mesmo quando erra.\n"+
 			"Mensagem do usuario: %q\n"+
 			"Historico recente:\n%s\n"+
 			"Responda com humor sutil e natural, sem repetir frases prontas.\n"+
 			"Responda EXCLUSIVAMENTE JSON no formato: {\"actorId\":\"marlene\",\"body\":\"...\"}.\n"+
 			"Escolha EXATAMENTE UM ator da lista permitida.\n"+
-			"Use portugues brasileiro com acentuacao correta.\n"+
+			"Use português brasileiro com acentuação correta.\n"+
 			"Texto curto (max. 220 caracteres), sem markdown e sem emojis.",
 		modeContext,
 		snapshot.Mode,
@@ -426,11 +426,11 @@ func buildMovePrompt(snapshot model.MatchSnapshot, available []int) string {
 	}
 
 	return fmt.Sprintf(
-		"Voce decide jogadas de jogo da velha 3x3 para o personagem Sr. Geraldo.\n"+
-			"Tabuleiro indices 0..8: %v\n"+
+		"Você decide jogadas de jogo da velha 3x3 para o personagem Sr. Geraldo.\n"+
+			"Tabuleiro índices 0..8: %v\n"+
 			"Turno atual: %s\n"+
-			"Movimentos disponiveis: %v\n"+
-			"Retorne SOMENTE JSON: {\"cellIndex\":N} onde N e um indice valido.",
+			"Movimentos disponíveis: %v\n"+
+			"Retorne SOMENTE JSON: {\"cellIndex\":N} onde N é um índice válido.",
 		board,
 		snapshot.Turn,
 		available,
@@ -439,7 +439,7 @@ func buildMovePrompt(snapshot model.MatchSnapshot, available []int) string {
 
 func buildAnnouncementPrompt(snapshot model.MatchSnapshot, hint string) string {
 	return fmt.Sprintf(
-		"Gere UMA frase curta em portugues como se fosse o Sr. Geraldo falando em tom confiante e burocratico.\n"+
+		"Gere UMA frase curta em português como se fosse o Sr. Geraldo falando em tom confiante e burocrático.\n"+
 			"Contexto: protocolo=%s, modo=%s, status=%s, dica=%s.\n"+
 			"Sem aspas, sem markdown, max 150 caracteres.",
 		snapshot.ProtocolCode,

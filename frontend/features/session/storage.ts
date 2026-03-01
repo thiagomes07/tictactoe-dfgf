@@ -66,7 +66,7 @@ export function getOrCreateIdentity(slot: IdentitySlot, fallbackDisplayName: str
   if (!isBrowser()) {
     return {
       playerId: makePlayerId(slot === "default" ? "estagiario" : slot === "room_host" ? "host-remoto" : "convidado"),
-      displayName: normalizeDisplayName(fallbackDisplayName, "Estagiario(a)")
+      displayName: normalizeDisplayName(fallbackDisplayName, "Estagiário(a)")
     };
   }
 
@@ -83,7 +83,7 @@ export function getOrCreateIdentity(slot: IdentitySlot, fallbackDisplayName: str
 
   const created: PlayerIdentity = {
     playerId: makePlayerId(slot === "default" ? "estagiario" : slot === "room_host" ? "host-remoto" : "convidado"),
-    displayName: normalizeDisplayName(fallbackDisplayName, "Estagiario(a)")
+    displayName: normalizeDisplayName(fallbackDisplayName, "Estagiário(a)")
   };
 
   window.localStorage.setItem(key, JSON.stringify(created));

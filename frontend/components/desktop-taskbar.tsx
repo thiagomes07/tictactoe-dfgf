@@ -64,7 +64,7 @@ function clockLabel(date: Date): string {
 
 function routeLabel(pathname: string, mode: string | null): string {
   if (pathname === "/jogo" && mode === "pvp_remote") return "Salas de Protocolo";
-  if (pathname === "/jogo") return "Formulario 3x3-B";
+  if (pathname === "/jogo") return "Formulário 3x3-B";
   if (pathname === "/sala") return "Salas de Protocolo";
   if (pathname === "/arquivo-morto") return "Arquivo Morto";
   return "Abertura de Processo";

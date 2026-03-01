@@ -135,17 +135,17 @@ func (s *Store) JoinRoom(roomCode string, req model.JoinRoomRequest) (model.Room
 		return model.RoomSnapshot{}, nil, model.SessionTicket{}, ErrNotFound
 	}
 	if strings.TrimSpace(req.PlayerID) == strings.TrimSpace(room.Snapshot.HostPlayerID) {
-		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: o host nao pode entrar como convidado", ErrInvalidInput)
+		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: o host não pode entrar como convidado", ErrInvalidInput)
 	}
 
 	guestDisplayName := strings.TrimSpace(req.DisplayName)
 	hostDisplayName := strings.TrimSpace(room.HostDisplayName)
 	if guestDisplayName != "" && hostDisplayName != "" && strings.EqualFold(guestDisplayName, hostDisplayName) {
-		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: o nome do convidado nao pode ser igual ao do host", ErrInvalidInput)
+		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: o nome do convidado não pode ser igual ao do host", ErrInvalidInput)
 	}
 
 	if room.Snapshot.GuestPlayerID != nil && *room.Snapshot.GuestPlayerID != req.PlayerID {
-		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: sala ja possui dois participantes", ErrConflict)
+		return model.RoomSnapshot{}, nil, model.SessionTicket{}, fmt.Errorf("%w: sala já possui dois participantes", ErrConflict)
 	}
 
 	if room.Snapshot.GuestPlayerID == nil {

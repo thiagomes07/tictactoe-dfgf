@@ -26,7 +26,7 @@ export function WindowsDialog({
       <section className="win-dialog" role="dialog" aria-modal="true" aria-label={title}>
         <header className="win-dialog-titlebar">
           <span>{title}</span>
-          <button type="button" className="win-dialog-close" onClick={onCancel} aria-label="Fechar dialogo">
+          <button type="button" className="win-dialog-close" onClick={onCancel} aria-label="Fechar diálogo">
             x
           </button>
         </header>

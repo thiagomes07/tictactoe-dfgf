@@ -145,21 +145,21 @@ async function waitForRemoteMatch(roomCode: string, timeoutMs = 30000, intervalM
 }
 
 function deriveModeLabel(snapshot: MatchSnapshot | null, difficulty: AiDifficulty): string {
-  if (!snapshot) return "Processo em inicializacao";
+  if (!snapshot) return "Processo em inicialização";
   if (snapshot.mode === "vs_ai") {
     const hard = snapshot.aiDifficulty && snapshot.aiDifficulty !== PRE_ALMOCO_DIFFICULTY;
-    const label = hard ? "Geraldo Modo Avaliacao Anual" : "Geraldo Pre-Almoco";
-    return `Estagiario vs Sr. Geraldo (${label})`;
+    const label = hard ? "Geraldo Modo Avaliação Anual" : "Geraldo Pré-Almoço";
+    return `Estagiário vs Sr. Geraldo (${label})`;
   }
   if (snapshot.mode === "pvp_remote") return "Player vs Player Remoto - Sala";
   if (snapshot.mode === "pvp_local") return "Player vs Player Local";
   return difficulty === PRE_ALMOCO_DIFFICULTY
-    ? "Estagiario vs Sr. Geraldo (Geraldo Pre-Almoco)"
-    : "Estagiario vs Sr. Geraldo (Geraldo Modo Avaliacao Anual)";
+    ? "Estagiário vs Sr. Geraldo (Geraldo Pré-Almoço)"
+    : "Estagiário vs Sr. Geraldo (Geraldo Modo Avaliação Anual)";
 }
 
 function resultStatus(snapshot: MatchSnapshot | null): string {
-  if (!snapshot) return "Aguardando inicializacao";
+  if (!snapshot) return "Aguardando inicialização";
   if (snapshot.state === "waiting_room") return "Aguardando entrada do convidado";
   if (snapshot.state === "in_progress") return "Em andamento";
   if (!snapshot.result) return "Processo encerrado";
@@ -336,11 +336,11 @@ export function GamePageClient() {
 
         if (config.mode === "pvp_remote") {
           if (!config.roomCode) {
-            throw new Error("Codigo de sala ausente para modo remoto.");
+            throw new Error("Código de sala ausente para modo remoto.");
           }
 
           const identitySlot = config.role === "guest" ? "room_guest" : "room_host";
-          const defaultName = config.role === "guest" ? "Estagiario(a) Convidado" : "Estagiario(a) Host";
+          const defaultName = config.role === "guest" ? "Estagiário(a) Convidado" : "Estagiário(a) Host";
           const identity = getOrCreateIdentity(identitySlot, defaultName);
           const resolvedIdentity = updateIdentityDisplayName(identitySlot, identity.displayName);
 
@@ -370,7 +370,7 @@ export function GamePageClient() {
           }
 
           if (!roomSession) {
-            throw new Error("Sessao da sala nao encontrada. Abra a tela de Salas de Protocolo para entrar novamente.");
+            throw new Error("Sessão da sala não encontrada. Abra a tela de Salas de Protocolo para entrar novamente.");
           }
 
           let activeMatchId: string | null = null;
@@ -411,17 +411,17 @@ export function GamePageClient() {
               });
             }
           } else {
-            throw new Error("O host ainda nao abriu o formulario da sala. Aguarde alguns segundos e tente novamente.");
+            throw new Error("O host ainda não abriu o formulário da sala. Aguarde alguns segundos e tente novamente.");
           }
 
           nextPlayerId = roomSession.playerId;
         } else {
-          const identity = updateIdentityDisplayName("default", getOrCreateIdentity("default", "Estagiario(a)").displayName);
+          const identity = updateIdentityDisplayName("default", getOrCreateIdentity("default", "Estagiário(a)").displayName);
           const createPayload: CreateMatchRequest = {
             mode: config.mode,
             hostPlayerId: identity.playerId,
             hostDisplayName: identity.displayName,
-            guestDisplayName: config.mode === "pvp_local" ? "Estagiario B" : undefined,
+            guestDisplayName: config.mode === "pvp_local" ? "Estagiário B" : undefined,
             aiDifficulty: config.mode === "vs_ai" ? config.difficulty : undefined
           };
 
@@ -649,7 +649,7 @@ export function GamePageClient() {
 
       const board = boardFromSnapshot(snapshot);
       if (board[index] !== null) {
-        appendSystemMessage("Campo ja preenchido. Selecione outra celula.");
+        appendSystemMessage("Campo já preenchido. Selecione outra célula.");
         return;
       }
 
@@ -692,7 +692,7 @@ export function GamePageClient() {
   const handleChatSend = useCallback(
     (text: string) => {
       if (!matchId || !playerId) {
-        appendSystemMessage("Partida nao inicializada. Aguarde o carregamento.");
+        appendSystemMessage("Partida não inicializada. Aguarde o carregamento.");
         return false;
       }
 
@@ -758,7 +758,7 @@ export function GamePageClient() {
         return true;
       }
 
-      appendSystemMessage("Nao foi possivel encerrar a sala remota agora. Tente novamente.");
+      appendSystemMessage("Não foi possível encerrar a sala remota agora. Tente novamente.");
       return false;
     }
   }, [appendSystemMessage, currentConfig.mode, currentConfig.role, currentConfig.roomCode, playerId]);
@@ -786,12 +786,12 @@ export function GamePageClient() {
   const canRequestNewMatch = currentConfig.mode !== "pvp_remote" || currentConfig.role === "host";
   const isRemoteHost = currentConfig.mode === "pvp_remote" && currentConfig.role === "host" && Boolean(currentConfig.roomCode);
   const leaveDialogMessage = isRemoteHost
-    ? "Voce esta saindo como host. A sala de protocolo sera encerrada e deletada para todos os participantes."
-    : "Ao sair agora, a partida em andamento sera encerrada e registrada como ARQUIVADO no Arquivo Morto.";
+    ? "Você está saindo como host. A sala de protocolo será encerrada e deletada para todos os participantes."
+    : "Ao sair agora, a partida em andamento será encerrada e registrada como ARQUIVADO no Arquivo Morto.";
   const leaveDialogConfirmLabel = isRemoteHost ? "Sair e deletar sala" : "Sair e arquivar";
   const switchDialogMessage = isRemoteHost
-    ? "Trocar de modo vai encerrar e deletar a sala remota atual, alem de limpar jogo e chat."
-    : "Trocar de modo vai limpar o jogo e o chat atuais. O processo parcial sera registrado no Arquivo Morto.";
+    ? "Trocar de modo vai encerrar e deletar a sala remota atual, além de limpar jogo e chat."
+    : "Trocar de modo vai limpar o jogo e o chat atuais. O processo parcial será registrado no Arquivo Morto.";
   const elapsedSeconds = useMemo(() => {
     if (!snapshot) return 0;
     if (typeof snapshot.durationSeconds === "number") return snapshot.durationSeconds;
@@ -826,7 +826,7 @@ export function GamePageClient() {
           {snapshot?.state === "finished" ? (
             <div className="post-match-panel">
               <p className="post-match-text">
-                Resultado computado no Arquivo Morto. Voce pode iniciar uma nova partida agora.
+                Resultado computado no Arquivo Morto. Você pode iniciar uma nova partida agora.
               </p>
               <div className="flex flex-wrap gap-2">
                 {canRequestNewMatch ? (
@@ -865,10 +865,10 @@ export function GamePageClient() {
           <div className="flex flex-wrap gap-2">
             {canRequestNewMatch ? (
               <button type="button" className="action-btn" onClick={resetMatch} disabled={isLoading}>
-                Abrir novo formulario
+                Abrir novo formulário
               </button>
             ) : (
-              <span className="status-strip">Somente o host pode abrir um novo formulario da sala.</span>
+              <span className="status-strip">Somente o host pode abrir um novo formulário da sala.</span>
             )}
 
             <button type="button" className="action-btn" onClick={() => navigateWithGuard("/arquivo-morto")}>
@@ -902,7 +902,7 @@ export function GamePageClient() {
 
       <WindowsDialog
         open={showSwitchDialog}
-        title="DFGF - Confirmacao de Troca"
+        title="DFGF - Confirmação de Troca"
         message={switchDialogMessage}
         confirmLabel="Trocar modo"
         cancelLabel="Permanecer"
@@ -929,7 +929,7 @@ export function GamePageClient() {
 
       <WindowsDialog
         open={showLeaveDialog}
-        title="DFGF - Saida do Processo"
+        title="DFGF - Saída do Processo"
         message={leaveDialogMessage}
         confirmLabel={leaveDialogConfirmLabel}
         cancelLabel="Continuar jogando"

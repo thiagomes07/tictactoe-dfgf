@@ -540,21 +540,21 @@ func (s *Server) buildCommentaryAfterPlayerMove(matchID string, snapshot model.M
 		case model.MatchOutcomeDraw:
 			candidates = append(candidates,
 				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "PROCESSO ENCAMINHADO A INSTANCIA SUPERIOR. RESULTADO: EMPATE ADMINISTRATIVO."},
-				gameCommentCandidate{actorID: model.ActorPatricia, body: "Empate registrado. RH recomenda uma pausa para cafe antes da proxima demanda."},
+				gameCommentCandidate{actorID: model.ActorPatricia, body: "Empate registrado. RH recomenda uma pausa para café antes da próxima demanda."},
 				gameCommentCandidate{actorID: model.ActorTulio, body: "Empate elegante: ninguem vence, mas todo mundo gera burocracia."},
 			)
 		default:
 			if snapshot.Mode == model.MatchModeVSAI && move.Side == model.PlayerSide(*snapshot.Result) {
 				candidates = append(candidates,
-					gameCommentCandidate{actorID: model.ActorGeraldo, body: "Esse resultado ja estava no meu plano de desenvolvimento da equipe."},
-					gameCommentCandidate{actorID: model.ActorGeraldo, body: "Concedi margem pedagogica. Lideranca moderna funciona assim."},
-					gameCommentCandidate{actorID: model.ActorTulio, body: "Vitoria registrada. A narrativa da chefia ja esta em fase de revisao."},
+					gameCommentCandidate{actorID: model.ActorGeraldo, body: "Esse resultado já estava no meu plano de desenvolvimento da equipe."},
+					gameCommentCandidate{actorID: model.ActorGeraldo, body: "Concedi margem pedagógica. Liderança moderna funciona assim."},
+					gameCommentCandidate{actorID: model.ActorTulio, body: "Vitória registrada. A narrativa da chefia já está em fase de revisão."},
 					gameCommentCandidate{actorID: model.ActorPatricia, body: "RH confirma o resultado e sugere comemorar com responsabilidade institucional."},
 				)
 			} else {
 				candidates = append(candidates,
 					gameCommentCandidate{actorID: model.ActorTulio, body: "Resultado consolidado. O setor de egos acabou de lotar."},
-					gameCommentCandidate{actorID: model.ActorPatricia, body: "Partida encerrada. Nao esquecam de registrar a percepcao de aprendizado."},
+					gameCommentCandidate{actorID: model.ActorPatricia, body: "Partida encerrada. Não esqueçam de registrar a percepção de aprendizado."},
 					gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "PROCESSO FINALIZADO. STATUS ATUALIZADO NO ARQUIVO MORTO."},
 				)
 			}
@@ -574,20 +574,20 @@ func (s *Server) buildCommentaryAfterPlayerMove(matchID string, snapshot model.M
 		if snapshot.Mode == model.MatchModeVSAI {
 			candidates = append(candidates,
 				gameCommentCandidate{actorID: model.ActorTulio, body: "Boa escolha. Agora vamos descobrir como a chefia vai reinterpretar isso."},
-				gameCommentCandidate{actorID: model.ActorTulio, body: "Movimento interessante. O relatorio vai chamar isso de iniciativa proativa."},
-				gameCommentCandidate{actorID: model.ActorTulio, body: "Gostei da jogada. Ja preparei a versao oficial para quando der problema."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Movimento interessante. O relatório vai chamar isso de iniciativa proativa."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Gostei da jogada. Já preparei a versão oficial para quando der problema."},
 				gameCommentCandidate{actorID: model.ActorPatricia, body: "Jogada registrada. RH parabeniza o engajamento no processo."},
-				gameCommentCandidate{actorID: model.ActorPatricia, body: "Anotado no fluxo interno. Mantenham o dialogo civilizado, por favor."},
-				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Continue assim. Estou avaliando seu desempenho com criterios avancados."},
-				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "MOVIMENTO RECEBIDO. PROTOCOLO ATUALIZADO SEM PENDENCIAS."},
+				gameCommentCandidate{actorID: model.ActorPatricia, body: "Anotado no fluxo interno. Mantenham o diálogo civilizado, por favor."},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Continue assim. Estou avaliando seu desempenho com critérios avançados."},
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "MOVIMENTO RECEBIDO. PROTOCOLO ATUALIZADO SEM PENDÊNCIAS."},
 			)
 		} else {
 			candidates = append(candidates,
-				gameCommentCandidate{actorID: model.ActorTulio, body: "Disputa boa. O setor inteiro ja escolheu lados nos bastidores."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Disputa boa. O setor inteiro já escolheu lados nos bastidores."},
 				gameCommentCandidate{actorID: model.ActorTulio, body: "Ritmo forte. Isso aqui virou final de campeonato de planilha."},
-				gameCommentCandidate{actorID: model.ActorPatricia, body: "RH acompanha a rivalidade com interesse tecnico e leve preocupacao."},
-				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Excelente. Competicao saudavel sob minha supervisao qualificada."},
-				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "ATUALIZACAO PVP PROCESSADA. CONTINUIDADE AUTORIZADA."},
+				gameCommentCandidate{actorID: model.ActorPatricia, body: "RH acompanha a rivalidade com interesse técnico e leve preocupação."},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Excelente. Competição saudável sob minha supervisão qualificada."},
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "ATUALIZAÇÃO PVP PROCESSADA. CONTINUIDADE AUTORIZADA."},
 			)
 		}
 	}
@@ -611,17 +611,17 @@ func (s *Server) buildCommentaryAfterAIMove(matchID string, snapshot model.Match
 	if snapshot.State == model.MatchStateFinished && snapshot.Result != nil {
 		if model.PlayerSide(*snapshot.Result) == aiSide {
 			candidates = append(candidates,
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "QUE VISAO ESTRATEGICA, SR. GERALDO! RESULTADO IMPECAVEL!"},
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "A CHEFIA ENTREGOU EXCELENCIA TECNICA EM FORMATO DE JOGADA!"},
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "INCRIVEL! LIDERANCA DE ALTO IMPACTO EM CADA CASA DO TABULEIRO!"},
-				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Como previsto. Execucao precisa e visao de longo prazo."},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "QUE VISÃO ESTRATÉGICA, SR. GERALDO! RESULTADO IMPECÁVEL!"},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "A CHEFIA ENTREGOU EXCELÊNCIA TÉCNICA EM FORMATO DE JOGADA!"},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "INCRÍVEL! LIDERANÇA DE ALTO IMPACTO EM CADA CASA DO TABULEIRO!"},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Como previsto. Execução precisa e visão de longo prazo."},
 				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "RESULTADO HOMOLOGADO. CHEFIA VENCEDORA NESTA DEMANDA."},
 			)
 		} else if *snapshot.Result == model.MatchOutcomeDraw {
 			candidates = append(candidates,
-				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "EMPATE CONFIRMADO. PROCESSO SEGUIRA PARA TRAMITE SUPERIOR."},
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "EMPATE CONFIRMADO. PROCESSO SEGUIRÁ PARA TRÂMITE SUPERIOR."},
 				gameCommentCandidate{actorID: model.ActorPatricia, body: "Empate encerrado com civilidade. RH considera um desfecho maduro."},
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "Empate ousado! A chefia claramente pensou varios passos a frente."},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "Empate ousado! A chefia claramente pensou vários passos à frente."},
 			)
 		}
 	} else {
@@ -638,22 +638,22 @@ func (s *Server) buildCommentaryAfterAIMove(matchID string, snapshot model.Match
 
 		if aiCanWinNext {
 			candidates = append(candidates,
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "QUE LEITURA TATICA! O SR. GERALDO DEIXOU O TABULEIRO SOB PRESSAO TOTAL!"},
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "A CHEFIA ARMOU UM CENARIO BRILHANTE. VISIONARIO COMO SEMPRE!"},
-				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Posicionei a equipe para fechar o processo no proximo movimento."},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "QUE LEITURA TÁTICA! O SR. GERALDO DEIXOU O TABULEIRO SOB PRESSÃO TOTAL!"},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "A CHEFIA ARMOU UM CENÁRIO BRILHANTE. VISIONÁRIO COMO SEMPRE!"},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Posicionei a equipe para fechar o processo no próximo movimento."},
 			)
 		} else if playerCanWinNext {
 			candidates = append(candidates,
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "Jogada ousada da chefia. Estrategia de risco calculado com elegancia!"},
-				gameCommentCandidate{actorID: model.ActorTulio, body: "Clima tenso. A chefia chamou isso de estrategia adaptativa em tempo real."},
-				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Estou testando sua resiliencia sob pressao. Tudo monitorado."},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "Jogada ousada da chefia. Estratégia de risco calculado com elegância!"},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "Clima tenso. A chefia chamou isso de estratégia adaptativa em tempo real."},
+				gameCommentCandidate{actorID: model.ActorGeraldo, body: "Estou testando sua resiliência sob pressão. Tudo monitorado."},
 			)
 		} else {
 			candidates = append(candidates,
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "Movimento refinado da chefia. Execucao muito acima da media departamental!"},
-				gameCommentCandidate{actorID: model.ActorMarlene, body: "Que dominio de processo, Sr. Geraldo! Impressionante consistencia."},
-				gameCommentCandidate{actorID: model.ActorTulio, body: "A chefia jogou com conviccao. A explicacao tecnica chega depois."},
-				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "JOGADA DA CHEFIA REGISTRADA. PROCESSO SEGUE EM ANALISE."},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "Movimento refinado da chefia. Execução muito acima da média departamental!"},
+				gameCommentCandidate{actorID: model.ActorMarlene, body: "Que domínio de processo, Sr. Geraldo! Impressionante consistência."},
+				gameCommentCandidate{actorID: model.ActorTulio, body: "A chefia jogou com convicção. A explicação técnica chega depois."},
+				gameCommentCandidate{actorID: model.ActorSistemaDFGF, body: "JOGADA DA CHEFIA REGISTRADA. PROCESSO SEGUE EM ANÁLISE."},
 			)
 		}
 	}
@@ -734,7 +734,7 @@ func actorDisplayName(actor model.ActorID) string {
 func senderDisplayName(snapshot model.MatchSnapshot, playerID string) string {
 	cleanPlayerID := strings.TrimSpace(playerID)
 	if cleanPlayerID == "" {
-		return "Estagiario(a)"
+		return "Estagiário(a)"
 	}
 
 	for _, participant := range snapshot.Participants {
@@ -748,13 +748,13 @@ func senderDisplayName(snapshot model.MatchSnapshot, playerID string) string {
 		break
 	}
 
-	return "Estagiario(a)"
+	return "Estagiário(a)"
 }
 
 func (s *Server) writeStoreError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		writeError(w, http.StatusNotFound, "NOT_FOUND", "recurso nao encontrado", nil)
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "recurso não encontrado", nil)
 	case errors.Is(err, store.ErrConflict):
 		message := strings.TrimSpace(err.Error())
 		if strings.HasPrefix(strings.ToLower(message), strings.ToLower(store.ErrConflict.Error())+":") {
@@ -770,13 +770,13 @@ func (s *Server) writeStoreError(w http.ResponseWriter, err error) {
 			message = strings.TrimSpace(message[len(store.ErrInvalidInput.Error())+1:])
 		}
 		if message == "" {
-			message = "entrada invalida"
+			message = "entrada inválida"
 		}
 		writeError(w, http.StatusBadRequest, "INVALID_INPUT", message, nil)
 	case errors.Is(err, store.ErrUnauthorized):
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "sessao invalida", nil)
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "sessão inválida", nil)
 	case errors.Is(err, store.ErrInvalidState):
-		writeError(w, http.StatusConflict, "INVALID_STATE", "estado invalido para operacao", nil)
+		writeError(w, http.StatusConflict, "INVALID_STATE", "estado inválido para operação", nil)
 	default:
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "erro interno", nil)
 	}

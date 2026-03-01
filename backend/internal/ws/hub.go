@@ -181,7 +181,7 @@ func (c *client) readPump() {
 		case "chat.typing":
 			// Typing signal is accepted but not persisted.
 		default:
-			c.hub.sendToClient(c, "error", map[string]any{"code": "UNSUPPORTED_EVENT", "message": "evento nao suportado"})
+			c.hub.sendToClient(c, "error", map[string]any{"code": "UNSUPPORTED_EVENT", "message": "evento não suportado"})
 		}
 	}
 }

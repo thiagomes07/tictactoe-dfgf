@@ -46,8 +46,8 @@ function normalizeName(value: string): string {
 
 export function RoomPageClient() {
   const router = useRouter();
-  const [hostName, setHostName] = useState("Estagiario(a) Host");
-  const [guestName, setGuestName] = useState("Estagiario(a) Convidado");
+  const [hostName, setHostName] = useState("Estagiário(a) Host");
+  const [guestName, setGuestName] = useState("Estagiário(a) Convidado");
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
@@ -78,8 +78,8 @@ export function RoomPageClient() {
   };
 
   useEffect(() => {
-    const hostIdentity = getOrCreateIdentity("room_host", "Estagiario(a) Host");
-    const guestIdentity = getOrCreateIdentity("room_guest", "Estagiario(a) Convidado");
+    const hostIdentity = getOrCreateIdentity("room_host", "Estagiário(a) Host");
+    const guestIdentity = getOrCreateIdentity("room_guest", "Estagiário(a) Convidado");
     setHostName(hostIdentity.displayName);
     setGuestName(guestIdentity.displayName);
 
@@ -139,7 +139,7 @@ export function RoomPageClient() {
           </div>
           <div>
             <p className="paper-headline">Salas Remotas - Emissao de Protocolo</p>
-            <p className="paper-meta">Criacao e adesao por codigo oficial DFGF-0000</p>
+            <p className="paper-meta">Criação e adesão por código oficial DFGF-0000</p>
           </div>
           <div className="protocol-box">
             <div className="window-controls window-controls-inline" aria-hidden="true">
@@ -156,7 +156,7 @@ export function RoomPageClient() {
           <div className="grid gap-3 lg:grid-cols-2">
             <div className="mode-card space-y-2">
               <h2 className="mode-title">Criar sala</h2>
-              <p className="mode-text">Gera um codigo de protocolo para partida remota entre dois estagiarios.</p>
+              <p className="mode-text">Gera um código de protocolo para partida remota entre dois estagiários.</p>
 
               <label className="block text-xs uppercase" htmlFor="host-name">
                 Nome do host
@@ -199,7 +199,7 @@ export function RoomPageClient() {
                         updatedAt: new Date().toISOString()
                       });
 
-                      setFeedback(`Sala ${roomCode} criada com sucesso. Compartilhe exatamente este codigo com o convidado.`);
+                      setFeedback(`Sala ${roomCode} criada com sucesso. Compartilhe exatamente este código com o convidado.`);
                       void refreshRooms();
                       router.push(`/jogo?mode=pvp_remote&room=${roomCode}&role=host`);
                     } catch (error) {
@@ -227,7 +227,7 @@ export function RoomPageClient() {
 
               {activeRoomCode ? (
                 <div className="status-strip">
-                  Convidado deve inserir este codigo: <strong>{activeRoomCode}</strong>
+                  Convidado deve inserir este código: <strong>{activeRoomCode}</strong>
                   <div className="mt-2 flex gap-2">
                     <button
                       type="button"
@@ -235,13 +235,13 @@ export function RoomPageClient() {
                       onClick={async () => {
                         try {
                           await navigator.clipboard.writeText(activeRoomCode);
-                          setFeedback(`Codigo ${activeRoomCode} copiado para a area de transferencia.`);
+                          setFeedback(`Código ${activeRoomCode} copiado para a área de transferência.`);
                         } catch {
-                          setFeedback("Nao foi possivel copiar automaticamente. Copie manualmente o codigo exibido.");
+                          setFeedback("Não foi possível copiar automaticamente. Copie manualmente o código exibido.");
                         }
                       }}
                     >
-                      Copiar codigo
+                      Copiar código
                     </button>
                   </div>
                 </div>
@@ -250,7 +250,7 @@ export function RoomPageClient() {
 
             <div className="mode-card space-y-2">
               <h2 className="mode-title">Entrar em sala</h2>
-              <p className="mode-text">Informe o codigo recebido (exemplo: DFGF-4872) para sincronizar o processo.</p>
+              <p className="mode-text">Informe o código recebido (exemplo: DFGF-4872) para sincronizar o processo.</p>
 
               <label className="block text-xs uppercase" htmlFor="guest-name">
                 Nome do convidado
@@ -263,7 +263,7 @@ export function RoomPageClient() {
               />
 
               <label className="block text-xs uppercase" htmlFor="room-code">
-                Codigo de protocolo
+                Código de protocolo
               </label>
               <input
                 id="room-code"
@@ -290,10 +290,10 @@ export function RoomPageClient() {
                   setFeedback(null);
 
                   if (duplicateNameWithHost(guestName, selectedRoom?.hostDisplayName ?? null)) {
-                    setFeedback("Entrada bloqueada: o host ja esta usando este nome. Escolha outro nome de convidado.");
+                    setFeedback("Entrada bloqueada: o host já está usando este nome. Escolha outro nome de convidado.");
                     setErrorDialog({
                       title: "Entrada bloqueada",
-                      message: "Nao foi possivel entrar: o host ja esta usando esse nome. Escolha outro nome de convidado."
+                      message: "Não foi possível entrar: o host já está usando esse nome. Escolha outro nome de convidado."
                     });
                     return;
                   }
@@ -302,10 +302,10 @@ export function RoomPageClient() {
                   try {
                     const roomInfo = await fetchRoom(normalizedJoinCode);
                     if (duplicateNameWithHost(guestName, roomInfo.hostDisplayName)) {
-                      setFeedback("Entrada bloqueada: o host ja esta usando este nome. Escolha outro nome de convidado.");
+                      setFeedback("Entrada bloqueada: o host já está usando este nome. Escolha outro nome de convidado.");
                       setErrorDialog({
                         title: "Entrada bloqueada",
-                        message: "Nao foi possivel entrar: o host ja esta usando esse nome. Escolha outro nome de convidado."
+                        message: "Não foi possível entrar: o host já está usando esse nome. Escolha outro nome de convidado."
                       });
                       return;
                     }
@@ -355,7 +355,7 @@ export function RoomPageClient() {
 
           <div className="mode-card space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="mode-title">Salas disponiveis</h2>
+              <h2 className="mode-title">Salas disponíveis</h2>
               <button type="button" className="action-btn" onClick={() => void refreshRooms()} disabled={isRefreshingRooms}>
                 {isRefreshingRooms ? "Atualizando..." : "Atualizar lista"}
               </button>
@@ -368,11 +368,11 @@ export function RoomPageClient() {
                 <table className="archive-table">
                   <thead>
                     <tr>
-                      <th>Codigo</th>
+                      <th>Código</th>
                       <th>Host</th>
                       <th>Status</th>
-                      <th>Ultima atividade</th>
-                      <th>Acao</th>
+                      <th>Última atividade</th>
+                      <th>Ação</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -388,10 +388,10 @@ export function RoomPageClient() {
                             className="action-btn"
                             onClick={() => {
                               setJoinCodeInput(room.roomCode);
-                              setFeedback(`Codigo ${room.roomCode} selecionado para entrada.`);
+                              setFeedback(`Código ${room.roomCode} selecionado para entrada.`);
                             }}
                           >
-                            Usar codigo
+                            Usar código
                           </button>
                         </td>
                       </tr>
@@ -406,7 +406,7 @@ export function RoomPageClient() {
         </div>
 
         <footer className="official-footer">
-          Regra interna: o nome da sala em modo remoto segue numeracao DFGF-0000
+          Regra interna: o nome da sala em modo remoto segue numeração DFGF-0000
         </footer>
       </section>
 

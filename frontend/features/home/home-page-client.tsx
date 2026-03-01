@@ -9,20 +9,20 @@ const WIZARD_KEY = "dfgf:home-wizard-seen:v1";
 
 const WIZARD_STEPS = [
   {
-    title: "Bem-vindo(a) ao escritorio DFGF",
-    text: "Voce esta em um escritorio brasileiro dos anos 90, no Departamento Federal de Gestão de Formulários. Aqui, cada Formulário 3x3-B funciona como um jogo da velha e cada partida representa uma demanda oficial de trabalho."
+    title: "Bem-vindo(a) ao escritório DFGF",
+    text: "Você está em um escritório brasileiro dos anos 90, no Departamento Federal de Gestão de Formulários. Aqui, cada Formulário 3x3-B funciona como um jogo da velha e cada partida representa uma demanda oficial de trabalho."
   },
   {
     title: "Como a demanda é processada",
-    text: "Cada jogada registra um despacho no processo. Voce pode jogar em tres modalidades: Estagiário(a) vs Sr. Geraldo (IA), Player vs Player Local na mesma maquina ou Player vs Player Remoto por sala com codigo de protocolo DFGF-0000."
+    text: "Cada jogada registra um despacho no processo. Você pode jogar em três modalidades: Estagiário(a) vs Sr. Geraldo (IA), Player vs Player Local na mesma máquina ou Player vs Player Remoto por sala com código de protocolo DFGF-0000."
   },
   {
     title: "Chat interno do departamento",
-    text: "Durante a partida, voce pode enviar mensagens no chat e interagir com os funcionarios do setor. Marlene, Tulio, Patricia, Sistema DFGF e o Sr. Geraldo respondem com personalidades proprias enquanto comentam o andamento da demanda em tempo real."
+    text: "Durante a partida, você pode enviar mensagens no chat e interagir com os funcionários do setor. Marlene, Túlio, Patrícia, Sistema DFGF e o Sr. Geraldo respondem com personalidades próprias enquanto comentam o andamento da demanda em tempo real."
   },
   {
     title: "Arquivo Morto e encerramento",
-    text: "Ao fim da partida, o resultado e registrado no Arquivo Morto local com status DEFERIDO, INDEFERIDO ou ARQUIVADO. Se voce sair no meio do processo, a demanda parcial tambem e registrada."
+    text: "Ao fim da partida, o resultado é registrado no Arquivo Morto local com status DEFERIDO, INDEFERIDO ou ARQUIVADO. Se você sair no meio do processo, a demanda parcial também é registrada."
   }
 ] as const;
 
@@ -56,9 +56,9 @@ export function HomePageClient() {
   return (
     <>
       {wizardOpen ? (
-        <div className="wizard-backdrop" role="dialog" aria-modal="true" aria-label="Introducao ao departamento">
+        <div className="wizard-backdrop" role="dialog" aria-modal="true" aria-label="Introdução ao departamento">
           <section className="wizard-modal">
-            <p className="wizard-title">Integracao de Novo Estagiário(a)</p>
+            <p className="wizard-title">Integração de Novo Estagiário(a)</p>
             <p className="wizard-step">Etapa {stepIndex + 1} de {WIZARD_STEPS.length}</p>
             <h2 className="wizard-heading">{currentStep.title}</h2>
             <p className="wizard-text">{currentStep.text}</p>
@@ -76,7 +76,7 @@ export function HomePageClient() {
 
               {!isLastStep ? (
                 <button type="button" className="action-btn" onClick={() => setStepIndex((prev) => prev + 1)}>
-                  Proxima etapa
+                  Próxima etapa
                 </button>
               ) : (
                 <button type="button" className="action-btn" onClick={finishWizard}>
@@ -111,7 +111,7 @@ export function HomePageClient() {
 
             <div>
               <p className="paper-headline">Abertura de Processo - Formulário 3x3-B</p>
-              <p className="paper-meta">Selecione a modalidade para iniciar tramitacao interna</p>
+              <p className="paper-meta">Selecione a modalidade para iniciar tramitação interna</p>
             </div>
 
             <div className="protocol-box">
@@ -127,7 +127,7 @@ export function HomePageClient() {
 
           <div className="form-lines space-y-4">
             <div className="status-strip">
-              Assinatura digital da chefia: Sr. Geraldo - "Nao li o processo, mas aprovo a iniciativa"
+              Assinatura digital da chefia: Sr. Geraldo - "Não li o processo, mas aprovo a iniciativa"
             </div>
 
             <div className="mx-auto flex w-full max-w-[760px] flex-col gap-3">
@@ -137,19 +137,19 @@ export function HomePageClient() {
                   <h2 className="mode-title">Estagiário vs Sr. Geraldo</h2>
                 </div>
                 <p className="mode-text">
-                  Modo principal. Chat completo, comentarios de equipe e duelo direto contra lideranca confiante.
+                  Modo principal. Chat completo, comentários de equipe e duelo direto contra liderança confiante.
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link className="action-btn" href="/jogo?mode=vs_ai&difficulty=pre_almoco" data-win-tooltip="Abrir modo facil">
-                    Geraldo Pre-Almoco
+                  <Link className="action-btn" href="/jogo?mode=vs_ai&difficulty=pre_almoco" data-win-tooltip="Abrir modo fácil">
+                    Geraldo Pré-Almoço
                   </Link>
                   <Link
                     className="action-btn"
                     href="/jogo?mode=vs_ai&difficulty=avaliação_anual"
-                    data-win-tooltip="Abrir modo dificil"
+                    data-win-tooltip="Abrir modo difícil"
                   >
-                    Modo Avaliacao Anual
+                    Modo Avaliação Anual
                   </Link>
                 </div>
               </article>
@@ -160,7 +160,7 @@ export function HomePageClient() {
                   <h2 className="mode-title">Player vs Player Local</h2>
                 </div>
                 <p className="mode-text">
-                  Dois estagiarios na mesma maquina disputam a demanda enquanto o departamento comenta cada decisao.
+                  Dois estagiários na mesma máquina disputam a demanda enquanto o departamento comenta cada decisão.
                 </p>
 
                 <div className="mt-3">
@@ -176,7 +176,7 @@ export function HomePageClient() {
                   <h2 className="mode-title">Player vs Player Remoto</h2>
                 </div>
                 <p className="mode-text">
-                  Criacao de sala por codigo de protocolo DFGF-0000 com fluxo de entrada por convite.
+                  Criação de sala por código de protocolo DFGF-0000 com fluxo de entrada por convite.
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -208,13 +208,13 @@ export function HomePageClient() {
                   setWizardOpen(true);
                 }}
               >
-                Reabrir orientacao inicial
+                Reabrir orientação inicial
               </button>
             </div>
           </div>
 
           <footer className="official-footer">
-            Manual oficial: Formulário 3x3-B - qualquer divergencia deve ser encaminhada a chefia imediata
+            Manual oficial: Formulário 3x3-B - qualquer divergência deve ser encaminhada à chefia imediata
           </footer>
         </section>
       </main>

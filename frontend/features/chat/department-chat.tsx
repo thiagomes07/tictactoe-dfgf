@@ -64,10 +64,10 @@ export function DepartmentChat({
           const isBoss = actor.id === "geraldo";
           const intentLabel =
             message.kind === "reply"
-              ? "RESPONDENDO VOCE"
+              ? "RESPONDENDO VOCÊ"
               : message.kind === "game_commentary"
-                ? "COMENTARIO DE JOGO"
-                : "TRAMITE INTERNO";
+                ? "COMENTÁRIO DE JOGO"
+                : "TRÂMITE INTERNO";
           const intentClass =
             message.kind === "reply"
               ? "chat-intent-reply"

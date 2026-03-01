@@ -54,8 +54,8 @@ export function DepartmentHeader() {
   };
 
   const dialogMessage = isRemoteHostContext
-    ? `Voce esta saindo da sala ${roomCode}. Como host, a sala sera encerrada e deletada para todos.`
-    : "Voce esta no meio de uma partida. Se sair agora, o jogo e o chat serao limpos e o processo parcial sera enviado ao Arquivo Morto.";
+    ? `Você está saindo da sala ${roomCode}. Como host, a sala será encerrada e deletada para todos.`
+    : "Você está no meio de uma partida. Se sair agora, o jogo e o chat serão limpos e o processo parcial será enviado ao Arquivo Morto.";
   const dialogConfirmLabel = isRemoteHostContext ? "Sair e deletar sala" : "Continuar";
 
   return (
@@ -71,9 +71,9 @@ export function DepartmentHeader() {
         </div>
 
         <div className="dfgf-topline-content">
-          <p className="dfgf-subtitle">Departamento Federal de Gestão de Formulários - modulo operacional 3x3-B</p>
+          <p className="dfgf-subtitle">Departamento Federal de Gestão de Formulários - módulo operacional 3x3-B</p>
 
-          <nav className="gov-tabs" aria-label="Navegacao principal">
+          <nav className="gov-tabs" aria-label="Navegação principal">
             {NAV_ITEMS.map((item) => {
               const isActive =
                 item.href === "/jogo?mode=pvp_local"
@@ -106,7 +106,7 @@ export function DepartmentHeader() {
 
       <WindowsDialog
         open={Boolean(pendingHref)}
-        title="DFGF - Confirmacao"
+        title="DFGF - Confirmação"
         message={dialogMessage}
         confirmLabel={dialogConfirmLabel}
         cancelLabel="Cancelar"
@@ -123,7 +123,7 @@ export function DepartmentHeader() {
                 await closeRoom(roomCode, { hostPlayerId: hostSession.playerId });
               } catch (error) {
                 if (!(error instanceof ApiClientError) || error.code !== "NOT_FOUND") {
-                  setBlockingError("Nao foi possivel encerrar a sala remota agora. Tente novamente em alguns segundos.");
+                  setBlockingError("Não foi possível encerrar a sala remota agora. Tente novamente em alguns segundos.");
                   return;
                 }
               }
@@ -140,7 +140,7 @@ export function DepartmentHeader() {
 
       <WindowsDialog
         open={Boolean(blockingError)}
-        title="Nao foi possivel sair"
+        title="Não foi possível sair"
         message={blockingError ?? ""}
         confirmLabel="Entendi"
         cancelLabel="Fechar"
