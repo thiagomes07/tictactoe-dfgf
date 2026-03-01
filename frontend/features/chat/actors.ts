@@ -14,7 +14,7 @@ export interface ActorProfile {
 export const ACTORS: Record<ActorId, ActorProfile> = {
   estagiario: {
     id: "estagiario",
-    name: "Estagiario(a)",
+    name: "Estagiário(a)",
     role: "Analista Temporario",
     initials: "ES",
     avatarColor: "#596673"
@@ -87,10 +87,10 @@ const AMBIENT_VS_AI: Array<{ actorId: ActorId; text: string }> = [
 ];
 
 const AMBIENT_PVP: Array<{ actorId: ActorId; text: string }> = [
-  { actorId: "geraldo", text: "Observacao da chefia: ambos sob avaliacao especial hoje." },
+  { actorId: "geraldo", text: "Observacao da chefia: ambos sob avaliação especial hoje." },
   { actorId: "marlene", text: "Que disputas incriveis sob a supervisao impecavel do Sr. Geraldo." },
   { actorId: "tulio", text: "Rivalidade instalada. RH vai chamar de integracao competitiva." },
-  { actorId: "patricia", text: "Ja reservei formularios de feedback para os dois participantes." },
+  { actorId: "patricia", text: "Ja reservei formulários de feedback para os dois participantes." },
   { actorId: "sistema_dfgf", text: "PROCESSO PVP REGISTRADO. PROMOCAO SUJEITA A DISPONIBILIDADE ORCAMENTARIA." }
 ];
 

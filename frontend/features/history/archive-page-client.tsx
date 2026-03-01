@@ -52,6 +52,11 @@ export function ArchivePageClient() {
             <p className="paper-meta">Historico local armazenado no frontend</p>
           </div>
           <div className="protocol-box">
+            <div className="window-controls window-controls-inline" aria-hidden="true">
+              <span className="window-control">_</span>
+              <span className="window-control">[]</span>
+              <span className="window-control">x</span>
+            </div>
             <div>Registros</div>
             <div className="protocol-code">{items.length.toString().padStart(2, "0")}</div>
           </div>
@@ -70,7 +75,7 @@ export function ArchivePageClient() {
                     <th>Protocolo</th>
                     <th>Modalidade</th>
                     <th>Status</th>
-                    <th>Duracao</th>
+                    <th>Duracão</th>
                     <th>Encerrado em</th>
                     <th>Parecer</th>
                   </tr>

@@ -366,8 +366,8 @@ func (s *Server) handleSendChatMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userMessage, err := s.store.AddMessage(matchID, model.ChatMessage{
-		ActorID:          model.ActorEstagiario,
-		ActorDisplayName: "Estagiario(a)",
+		ActorID:          model.ActorEstagiário,
+		ActorDisplayName: "Estagiário(a)",
 		Channel:          model.ChatChannelInternalChat,
 		Body:             req.Body,
 	})

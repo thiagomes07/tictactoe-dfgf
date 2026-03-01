@@ -85,15 +85,20 @@ export function DepartmentChat({
           setCooldownLeftMs(sendCooldownMs);
         }}
       >
-        <input
-          className="chat-input"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="Enviar mensagem ao departamento..."
-          maxLength={280}
-          aria-label="Mensagem para o chat interno"
-          disabled={!canSend}
-        />
+        <div className="chat-send-row">
+          <input
+            className="chat-input"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Enviar mensagem ao departamento..."
+            maxLength={280}
+            aria-label="Mensagem para o chat interno"
+            disabled={!canSend}
+          />
+          <button type="submit" className="action-btn chat-send-btn" disabled={!canSend}>
+            Enviar
+          </button>
+        </div>
         {!canSend ? (
           <p className="chat-cooldown">Aguarde {Math.ceil(cooldownLeftMs / 1000)}s para nova mensagem.</p>
         ) : null}

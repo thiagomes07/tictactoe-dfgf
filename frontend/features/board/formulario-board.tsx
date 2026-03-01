@@ -2,7 +2,7 @@
 
 import type { CellMark } from "@/types/game";
 
-interface FormularioBoardProps {
+interface FormulárioBoardProps {
   protocolCode: string;
   modeLabel: string;
   statusLabel: string;
@@ -25,7 +25,7 @@ function Stamp({ mark }: { mark: Exclude<CellMark, null> }) {
   );
 }
 
-export function FormularioBoard({
+export function FormulárioBoard({
   protocolCode,
   modeLabel,
   statusLabel,
@@ -36,7 +36,7 @@ export function FormularioBoard({
   onCellClick,
   disableBoard,
   paperKey
-}: FormularioBoardProps) {
+}: FormulárioBoardProps) {
   return (
     <article key={paperKey} className="paper-sheet">
       <header className="paper-header">
@@ -47,11 +47,16 @@ export function FormularioBoard({
         </div>
 
         <div>
-          <p className="paper-headline">Formulario 3x3-B - Controle de Demanda</p>
-          <p className="paper-meta">Departamento Federal de Gestao de Formularios</p>
+          <p className="paper-headline">Formulário 3x3-B - Controle de Demanda</p>
+          <p className="paper-meta">Departamento Federal de Gestão de Formulários</p>
         </div>
 
         <div className="protocol-box">
+          <div className="window-controls window-controls-inline" aria-hidden="true">
+            <span className="window-control">_</span>
+            <span className="window-control">[]</span>
+            <span className="window-control">x</span>
+          </div>
           <div>Processo Ativo</div>
           <div className="protocol-code">{protocolCode}</div>
         </div>
@@ -67,15 +72,15 @@ export function FormularioBoard({
           <strong>{statusLabel}</strong>
         </div>
         <div className="form-kv">
-          <span>Responsavel da vez:</span>
+          <span>Responsável da vez:</span>
           <strong>{currentTurnLabel}</strong>
         </div>
         <div className="form-kv">
-          <span>Duracao do processo:</span>
+          <span>Duracão do processo:</span>
           <strong>{elapsedLabel}</strong>
         </div>
 
-        <div className="board-grid" role="grid" aria-label="Formulario 3x3-B">
+        <div className="board-grid" role="grid" aria-label="Formulário 3x3-B">
           {board.map((mark, index) => {
             const isHighlighted = Boolean(winningLine?.includes(index));
 
@@ -99,7 +104,7 @@ export function FormularioBoard({
       </div>
 
       <footer className="official-footer">
-        Formulario 3x3-B - Revisao 1987 - Proibida reproducao sem autorizacao da chefia imediata
+        Formulário 3x3-B - Revisao 1987 - Proibida reproducao sem autorizacao da chefia imediata
       </footer>
     </article>
   );

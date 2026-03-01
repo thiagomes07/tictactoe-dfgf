@@ -211,7 +211,7 @@ func (s *Store) CreateMatch(req model.CreateMatchRequest) (model.MatchSnapshot, 
 			IsConnected: true,
 		})
 	case model.MatchModePVPLocal:
-		guestName := "Estagiario B"
+		guestName := "Estagiário B"
 		if req.GuestDisplayName != nil && strings.TrimSpace(*req.GuestDisplayName) != "" {
 			guestName = *req.GuestDisplayName
 		}

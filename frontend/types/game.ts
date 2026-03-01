@@ -1,5 +1,5 @@
 export type MatchMode = "vs_ai" | "pvp_local" | "pvp_remote";
-export type AiDifficulty = "pre_almoco" | "avaliacao_anual";
+export type AiDifficulty = "pre_almoco" | "avaliação_anual";
 export type PlayerSide = "x" | "o";
 export type CellMark = PlayerSide | null;
 export type MatchState = "waiting_room" | "in_progress" | "finished";

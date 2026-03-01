@@ -14,7 +14,7 @@ type AiDifficulty string
 
 const (
 	AiDifficultyPreAlmoco      AiDifficulty = "pre_almoco"
-	AiDifficultyAvaliacaoAnual AiDifficulty = "avaliacao_anual"
+	AiDifficultyAvaliacaoAnual AiDifficulty = "avaliação_anual"
 )
 
 type PlayerSide string
@@ -43,7 +43,7 @@ const (
 type ActorID string
 
 const (
-	ActorEstagiario  ActorID = "estagiario"
+	ActorEstagiário  ActorID = "estagiario"
 	ActorGeraldo     ActorID = "geraldo"
 	ActorMarlene     ActorID = "marlene"
 	ActorTulio       ActorID = "tulio"

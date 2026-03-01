@@ -9,16 +9,20 @@ const WIZARD_KEY = "dfgf:home-wizard-seen:v1";
 
 const WIZARD_STEPS = [
   {
-    title: "Boas-vindas ao DFGF",
-    text: "Voce foi alocado(a) para o Departamento Federal de Gestao de Formularios. Cada partida e um processo e cada jogada e um despacho oficial."
+    title: "Bem-vindo(a) ao escritorio DFGF",
+    text: "Voce esta em um escritorio brasileiro dos anos 90, no Departamento Federal de Gestão de Formulários. Aqui, cada Formulário 3x3-B funciona como um jogo da velha e cada partida representa uma demanda oficial de trabalho."
   },
   {
-    title: "Como funciona",
-    text: "No formulario 3x3-B, voce disputa aprovacoes com o Sr. Geraldo, com estagiarios locais ou em sala remota por codigo de protocolo DFGF-0000."
+    title: "Como a demanda e processada",
+    text: "Cada jogada registra um despacho no processo. Voce pode jogar em tres modalidades: Estagiário(a) vs Sr. Geraldo (IA), Player vs Player Local na mesma maquina ou Player vs Player Remoto por sala com codigo de protocolo DFGF-0000."
   },
   {
-    title: "Chat corporativo",
-    text: "Marlene, Tulio, Patricia de RH e Sistema DFGF comentam tudo em tempo real. Use o chat para interagir e acompanhar a burocracia acontecendo."
+    title: "Chat interno do departamento",
+    text: "Durante a partida, voce pode enviar mensagens no chat e interagir com os funcionarios do setor. Marlene, Tulio, Patricia, Sistema DFGF e o Sr. Geraldo respondem com personalidades proprias enquanto comentam o andamento da demanda em tempo real."
+  },
+  {
+    title: "Arquivo Morto e encerramento",
+    text: "Ao fim da partida, o resultado e registrado no Arquivo Morto local com status DEFERIDO, INDEFERIDO ou ARQUIVADO. Se voce sair no meio do processo, a demanda parcial tambem e registrada."
   }
 ] as const;
 
@@ -54,7 +58,7 @@ export function HomePageClient() {
       {wizardOpen ? (
         <div className="wizard-backdrop" role="dialog" aria-modal="true" aria-label="Introducao ao departamento">
           <section className="wizard-modal">
-            <p className="wizard-title">Integracao de Novo Estagiario(a)</p>
+            <p className="wizard-title">Integracao de Novo Estagiário(a)</p>
             <p className="wizard-step">Etapa {stepIndex + 1} de {WIZARD_STEPS.length}</p>
             <h2 className="wizard-heading">{currentStep.title}</h2>
             <p className="wizard-text">{currentStep.text}</p>
@@ -106,11 +110,16 @@ export function HomePageClient() {
             </div>
 
             <div>
-              <p className="paper-headline">Abertura de Processo - Formulario 3x3-B</p>
+              <p className="paper-headline">Abertura de Processo - Formulário 3x3-B</p>
               <p className="paper-meta">Selecione a modalidade para iniciar tramitacao interna</p>
             </div>
 
             <div className="protocol-box">
+              <div className="window-controls window-controls-inline" aria-hidden="true">
+                <span className="window-control">_</span>
+                <span className="window-control">[]</span>
+                <span className="window-control">x</span>
+              </div>
               <div>Despacho inicial</div>
               <div className="protocol-code">PENDENTE</div>
             </div>
@@ -123,43 +132,56 @@ export function HomePageClient() {
 
             <div className="mx-auto flex w-full max-w-[760px] flex-col gap-3">
               <article className="mode-card">
-                <h2 className="mode-title">Estagiario vs Sr. Geraldo</h2>
+                <div className="mode-title-row">
+                  <span className="pixel-icon icon-monitor" aria-hidden="true" />
+                  <h2 className="mode-title">Estagiário vs Sr. Geraldo</h2>
+                </div>
                 <p className="mode-text">
                   Modo principal. Chat completo, comentarios de equipe e duelo direto contra lideranca confiante.
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link className="action-btn" href="/jogo?mode=vs_ai&difficulty=pre_almoco">
+                  <Link className="action-btn" href="/jogo?mode=vs_ai&difficulty=pre_almoco" data-win-tooltip="Abrir modo facil">
                     Geraldo Pre-Almoco
                   </Link>
-                  <Link className="action-btn" href="/jogo?mode=vs_ai&difficulty=avaliacao_anual">
+                  <Link
+                    className="action-btn"
+                    href="/jogo?mode=vs_ai&difficulty=avaliação_anual"
+                    data-win-tooltip="Abrir modo dificil"
+                  >
                     Modo Avaliacao Anual
                   </Link>
                 </div>
               </article>
 
               <article className="mode-card">
-                <h2 className="mode-title">Player vs Player Local</h2>
+                <div className="mode-title-row">
+                  <span className="pixel-icon icon-board" aria-hidden="true" />
+                  <h2 className="mode-title">Player vs Player Local</h2>
+                </div>
                 <p className="mode-text">
                   Dois estagiarios na mesma maquina disputam a demanda enquanto o departamento comenta cada decisao.
                 </p>
 
                 <div className="mt-3">
-                  <Link className="action-btn" href="/jogo?mode=pvp_local">
+                  <Link className="action-btn" href="/jogo?mode=pvp_local" data-win-tooltip="Iniciar confronto local">
                     Abrir disputa local
                   </Link>
                 </div>
               </article>
 
               <article className="mode-card">
-                <h2 className="mode-title">Player vs Player Remoto</h2>
+                <div className="mode-title-row">
+                  <span className="pixel-icon icon-network" aria-hidden="true" />
+                  <h2 className="mode-title">Player vs Player Remoto</h2>
+                </div>
                 <p className="mode-text">
                   Criacao de sala por codigo de protocolo DFGF-0000 com fluxo de entrada por convite.
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link className="action-btn" href="/sala">
-                    Gerenciar zzsalas
+                  <Link className="action-btn" href="/sala" data-win-tooltip="Criar ou entrar em sala remota">
+                    Gerenciar salas
                   </Link>
                 </div>
               </article>
@@ -192,7 +214,7 @@ export function HomePageClient() {
           </div>
 
           <footer className="official-footer">
-            Manual oficial: Formulario 3x3-B - qualquer divergencia deve ser encaminhada a chefia imediata
+            Manual oficial: Formulário 3x3-B - qualquer divergencia deve ser encaminhada a chefia imediata
           </footer>
         </section>
       </main>

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { chooseAiMove, formatElapsed, generateProtocolCode, resolveBoard } from "@/features/board/engine";
-import { FormularioBoard } from "@/features/board/formulario-board";
+import { FormulárioBoard } from "@/features/board/formulario-board";
 import {
   ACTORS,
   modeToChatProfile,
@@ -17,11 +17,14 @@ import {
 } from "@/features/chat/actors";
 import { DepartmentChat } from "@/features/chat/department-chat";
 import { saveArchiveItem } from "@/features/history/storage";
+import { WindowsDialog } from "@/components/windows-dialog";
 import type { AiDifficulty, MatchMode, MatchOutcome, PlayerSide } from "@/types/game";
 
 const CHAT_SEND_COOLDOWN_MS = 2600;
 const MAX_PENDING_REPLIES = 2;
 const GAME_PROGRESS_STORAGE_KEY = "dfgf:game-progress:v1";
+const MODE_SWITCH_APPROVAL_KEY = "dfgf:mode-switch-approval:v1";
+const INTERRUPTED_RESULT_LABEL = "PROCESSO ENCERRADO ANTES DO RESULTADO FINAL";
 
 function normalizeMode(value: string | null): MatchMode {
   if (value === "pvp_local" || value === "pvp_remote" || value === "vs_ai") return value;
@@ -29,14 +32,14 @@ function normalizeMode(value: string | null): MatchMode {
 }
 
 function normalizeDifficulty(value: string | null): AiDifficulty {
-  if (value === "pre_almoco" || value === "avaliacao_anual") return value;
+  if (value === "pre_almoco" || value === "avaliação_anual") return value;
   return "pre_almoco";
 }
 
 function modeToLabel(mode: MatchMode, difficulty: AiDifficulty): string {
   if (mode === "vs_ai") {
     const diff = difficulty === "pre_almoco" ? "Geraldo Pre-Almoco" : "Geraldo Modo Avaliacao Anual";
-    return `Estagiario vs Sr. Geraldo (${diff})`;
+    return `Estagiário vs Sr. Geraldo (${diff})`;
   }
 
   if (mode === "pvp_remote") return "Player vs Player Remoto - Sala";
@@ -44,18 +47,18 @@ function modeToLabel(mode: MatchMode, difficulty: AiDifficulty): string {
 }
 
 function playerLabelForSide(mode: MatchMode, side: PlayerSide): string {
-  if (mode === "vs_ai") return side === "x" ? "Estagiario(a)" : "Sr. Geraldo";
+  if (mode === "vs_ai") return side === "x" ? "Estagiário(a)" : "Sr. Geraldo";
   if (mode === "pvp_remote") return side === "x" ? "Host" : "Convidado Remoto";
-  return side === "x" ? "Estagiario A" : "Estagiario B";
+  return side === "x" ? "Estagiário A" : "Estagiário B";
 }
 
 function winnerLabel(mode: MatchMode, outcome: MatchOutcome): string {
   if (!outcome) return "Partida em andamento";
   if (outcome === "draw") return "Empate - Processo arquivado";
 
-  if (mode === "vs_ai") return outcome === "x" ? "Vencedor: Estagiario(a)" : "Vencedor: Sr. Geraldo";
+  if (mode === "vs_ai") return outcome === "x" ? "Vencedor: Estagiário(a)" : "Vencedor: Sr. Geraldo";
   if (mode === "pvp_remote") return outcome === "x" ? "Vencedor: Host" : "Vencedor: Convidado Remoto";
-  return outcome === "x" ? "Vencedor: Estagiario A" : "Vencedor: Estagiario B";
+  return outcome === "x" ? "Vencedor: Estagiário A" : "Vencedor: Estagiário B";
 }
 
 function statusFromOutcome(outcome: MatchOutcome): string {
@@ -82,7 +85,7 @@ function initialChat(protocolCode: string): UiChatMessage[] {
     {
       id: `msg-${Date.now()}`,
       actorId: "sistema_dfgf",
-      text: `PROCESSO ${protocolCode} ABERTO. AGUARDANDO PREENCHIMENTO DO FORMULARIO 3x3-B.`,
+      text: `PROCESSO ${protocolCode} ABERTO. AGUARDANDO PREENCHIMENTO DO FORMULÁRIO 3x3-B.`,
       createdAt: nowLabel()
     }
   ];
@@ -122,9 +125,15 @@ export function GamePageClient() {
   const [messages, setMessages] = useState<UiChatMessage[]>(() => initialChat(initialProtocolRef.current));
   const [lastInteractionAt, setLastInteractionAt] = useState<number>(() => Date.now());
   const [pendingReplies, setPendingReplies] = useState(0);
+  const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+  const [pendingConfig, setPendingConfig] = useState<GameConfig | null>(null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [pendingLeaveHref, setPendingLeaveHref] = useState<string | null>(null);
 
   const sequenceRef = useRef(1);
   const configRef = useRef<GameConfig>({ mode, difficulty, roomCode: roomCodeParam });
+  const inProgressRef = useRef(false);
+  const interruptedArchiveSavedRef = useRef(false);
 
   const appendMessage = useCallback((actorId: keyof typeof ACTORS, text: string) => {
     setMessages((prev) => [
@@ -152,7 +161,26 @@ export function GamePageClient() {
     setMessages(initialChat(nextProtocol));
     setLastInteractionAt(Date.now());
     setPendingReplies(0);
+    interruptedArchiveSavedRef.current = false;
   }, [chatProfile]);
+
+  const saveInterruptedArchive = useCallback(() => {
+    const hasStarted = board.some((cell) => cell !== null);
+    if (!hasStarted || outcome || interruptedArchiveSavedRef.current) return;
+
+    const durationSeconds = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
+    saveArchiveItem({
+      id: `${protocolCode}-${startedAt}`,
+      protocolCode,
+      mode,
+      startedAt: new Date(startedAt).toISOString(),
+      finishedAt: new Date().toISOString(),
+      durationSeconds,
+      status: "ARQUIVADO",
+      resultLabel: INTERRUPTED_RESULT_LABEL
+    });
+    interruptedArchiveSavedRef.current = true;
+  }, [board, mode, outcome, protocolCode, startedAt]);
 
   const writeArchive = useCallback(
     (result: MatchOutcome, durationSeconds: number) => {
@@ -260,7 +288,7 @@ export function GamePageClient() {
       }
 
       if ((mode === "pvp_local" || mode === "pvp_remote") && Math.random() > 0.52) {
-        appendMessage("sistema_dfgf", `TURNO REGISTRADO. PROXIMO RESPONSAVEL: ${playerLabelForSide(mode, nextTurn).toUpperCase()}.`);
+        appendMessage("sistema_dfgf", `TURNO REGISTRADO. PROXIMO RESPONSÁVEL: ${playerLabelForSide(mode, nextTurn).toUpperCase()}.`);
       }
 
       return true;
@@ -290,21 +318,29 @@ export function GamePageClient() {
       previous.roomCode !== roomCodeParam;
 
     if (!changed) return;
+    const nextConfig: GameConfig = { mode, difficulty, roomCode: roomCodeParam };
 
-    const hasActiveMatch = board.some((cell) => cell !== null) && !outcome;
+      const hasActiveMatch = board.some((cell) => cell !== null) && !outcome;
     if (hasActiveMatch) {
-      const confirmed = window.confirm(
-        "Trocar de modo vai resetar a partida atual e limpar o chat. Deseja continuar?"
-      );
-      if (!confirmed) {
-        router.replace(buildGameHref(previous));
+      const nextHref = buildGameHref(nextConfig);
+      const approvedHref = window.sessionStorage.getItem(MODE_SWITCH_APPROVAL_KEY);
+      if (approvedHref === nextHref) {
+        window.sessionStorage.removeItem(MODE_SWITCH_APPROVAL_KEY);
+        saveInterruptedArchive();
+        resetState(roomCodeParam ?? generateProtocolCode());
+        configRef.current = nextConfig;
         return;
       }
+
+      setPendingConfig(nextConfig);
+      setShowSwitchDialog(true);
+      router.replace(buildGameHref(previous));
+      return;
     }
 
     resetState(roomCodeParam ?? generateProtocolCode());
-    configRef.current = { mode, difficulty, roomCode: roomCodeParam };
-  }, [board, difficulty, mode, outcome, resetState, roomCodeParam, router]);
+    configRef.current = nextConfig;
+  }, [board, difficulty, mode, outcome, resetState, roomCodeParam, router, saveInterruptedArchive]);
 
   useEffect(() => {
     if (outcome || mode !== "vs_ai" || turn !== "o") return;
@@ -383,11 +419,14 @@ export function GamePageClient() {
 
   useEffect(() => {
     const inProgress = board.some((cell) => cell !== null) && !outcome;
+    inProgressRef.current = inProgress;
     const payload = {
       inProgress,
       mode,
       difficulty,
       roomCode: roomCodeParam,
+      protocolCode,
+      startedAt,
       updatedAt: new Date().toISOString()
     };
 
@@ -395,7 +434,17 @@ export function GamePageClient() {
     return () => {
       window.localStorage.removeItem(GAME_PROGRESS_STORAGE_KEY);
     };
-  }, [board, difficulty, mode, outcome, roomCodeParam]);
+  }, [board, difficulty, mode, outcome, protocolCode, roomCodeParam, startedAt]);
+
+  useEffect(() => {
+    return () => {
+      if (!inProgressRef.current) return;
+      const approvedHref = window.sessionStorage.getItem(MODE_SWITCH_APPROVAL_KEY);
+      if (!approvedHref) return;
+      saveInterruptedArchive();
+      window.sessionStorage.removeItem(MODE_SWITCH_APPROVAL_KEY);
+    };
+  }, [saveInterruptedArchive]);
 
   const handleChatSend = useCallback(
     (text: string) => {
@@ -424,6 +473,19 @@ export function GamePageClient() {
     resetState(roomCodeParam ?? generateProtocolCode());
   }, [resetState, roomCodeParam]);
 
+  const navigateWithGuard = useCallback(
+    (href: string) => {
+      const inProgress = board.some((cell) => cell !== null) && !outcome;
+      if (!inProgress) {
+        router.push(href);
+        return;
+      }
+      setPendingLeaveHref(href);
+      setShowLeaveDialog(true);
+    },
+    [board, outcome, router]
+  );
+
   const modeLabel = useMemo(() => modeToLabel(mode, difficulty), [difficulty, mode]);
   const currentTurnLabel = useMemo(() => playerLabelForSide(mode, turn), [mode, turn]);
   const elapsedLabel = useMemo(() => formatElapsed(elapsedSeconds), [elapsedSeconds]);
@@ -431,8 +493,9 @@ export function GamePageClient() {
   const resultHighlight = useMemo(() => winnerLabel(mode, outcome), [mode, outcome]);
 
   return (
-    <div className="panel-grid">
-      <section className="space-y-3">
+    <>
+      <div className="panel-grid">
+        <section className="space-y-3">
         <div className="status-strip">
           Processo {protocolCode} - {statusLabel} - tempo atual: {elapsedLabel}
         </div>
@@ -455,7 +518,7 @@ export function GamePageClient() {
           </div>
         ) : null}
 
-        <FormularioBoard
+        <FormulárioBoard
           protocolCode={protocolCode}
           modeLabel={modeLabel}
           statusLabel={statusLabel}
@@ -468,25 +531,29 @@ export function GamePageClient() {
           paperKey={paperKey}
         />
 
-        <div className="broadcast-box">{broadcast}</div>
+        <div className="broadcast-box">
+          <span className="broadcast-segment">CHEFIA</span>
+          <span className="broadcast-message">{broadcast}</span>
+          <span className="broadcast-segment">PROTOCOLO: {protocolCode}</span>
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <button type="button" className="action-btn" onClick={resetMatch}>
             Abrir novo formulario
           </button>
 
-          <Link className="action-btn" href="/arquivo-morto">
+          <button type="button" className="action-btn" onClick={() => navigateWithGuard("/arquivo-morto")}>
             Consultar arquivo morto
-          </Link>
+          </button>
 
-          <Link className="action-btn" href="/sala">
+          <button type="button" className="action-btn" onClick={() => navigateWithGuard("/sala")}>
             Ir para salas remotas
-          </Link>
+          </button>
 
           {mode === "vs_ai" ? (
             <Link
               className="action-btn"
-              href={`/jogo?mode=vs_ai&difficulty=${difficulty === "pre_almoco" ? "avaliacao_anual" : "pre_almoco"}`}
+              href={`/jogo?mode=vs_ai&difficulty=${difficulty === "pre_almoco" ? "avaliação_anual" : "pre_almoco"}`}
             >
               Trocar dificuldade
             </Link>
@@ -494,12 +561,60 @@ export function GamePageClient() {
         </div>
       </section>
 
-      <DepartmentChat
-        protocolCode={protocolCode}
-        messages={messages}
-        onSendMessage={handleChatSend}
-        sendCooldownMs={CHAT_SEND_COOLDOWN_MS}
+        <DepartmentChat
+          protocolCode={protocolCode}
+          messages={messages}
+          onSendMessage={handleChatSend}
+          sendCooldownMs={CHAT_SEND_COOLDOWN_MS}
+        />
+      </div>
+
+      <WindowsDialog
+        open={showSwitchDialog}
+        title="DFGF - Confirmacao de Troca"
+        message="Trocar de modo vai limpar o jogo e o chat atuais. O processo parcial sera registrado no Arquivo Morto."
+        confirmLabel="Trocar modo"
+        cancelLabel="Permanecer"
+        onCancel={() => {
+          setShowSwitchDialog(false);
+          setPendingConfig(null);
+        }}
+        onConfirm={() => {
+          if (!pendingConfig) {
+            setShowSwitchDialog(false);
+            return;
+          }
+          saveInterruptedArchive();
+          configRef.current = pendingConfig;
+          resetState(pendingConfig.roomCode ?? generateProtocolCode());
+          router.replace(buildGameHref(pendingConfig));
+          setPendingConfig(null);
+          setShowSwitchDialog(false);
+        }}
       />
-    </div>
+
+      <WindowsDialog
+        open={showLeaveDialog}
+        title="DFGF - Saida do Processo"
+        message="Ao sair agora, a partida em andamento sera encerrada e registrada como ARQUIVADO no Arquivo Morto."
+        confirmLabel="Sair e arquivar"
+        cancelLabel="Continuar jogando"
+        onCancel={() => {
+          setShowLeaveDialog(false);
+          setPendingLeaveHref(null);
+        }}
+        onConfirm={() => {
+          if (!pendingLeaveHref) {
+            setShowLeaveDialog(false);
+            return;
+          }
+          const href = pendingLeaveHref;
+          saveInterruptedArchive();
+          setPendingLeaveHref(null);
+          setShowLeaveDialog(false);
+          router.push(href);
+        }}
+      />
+    </>
   );
 }

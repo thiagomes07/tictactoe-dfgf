@@ -16,8 +16,8 @@ function normalizeRoomCode(value: string): string {
 
 export function RoomPageClient() {
   const router = useRouter();
-  const [hostName, setHostName] = useState("Estagiario(a) Host");
-  const [guestName, setGuestName] = useState("Estagiario(a) Convidado");
+  const [hostName, setHostName] = useState("Estagiário(a) Host");
+  const [guestName, setGuestName] = useState("Estagiário(a) Convidado");
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
 
@@ -51,6 +51,11 @@ export function RoomPageClient() {
             <p className="paper-meta">Criacao e adesao por codigo oficial DFGF-0000</p>
           </div>
           <div className="protocol-box">
+            <div className="window-controls window-controls-inline" aria-hidden="true">
+              <span className="window-control">_</span>
+              <span className="window-control">[]</span>
+              <span className="window-control">x</span>
+            </div>
             <div>Status de sala</div>
             <div className="protocol-code">{activeRoomCode ?? "SEM SALA"}</div>
           </div>
@@ -67,7 +72,7 @@ export function RoomPageClient() {
               </label>
               <input
                 id="host-name"
-                className="chat-input !bg-[#f7f1e4] !text-inkBlack !border-[#7b7a74]"
+                className="win-input"
                 value={hostName}
                 onChange={(event) => setHostName(event.target.value)}
               />
@@ -76,6 +81,7 @@ export function RoomPageClient() {
                 <button
                   type="button"
                   className="action-btn"
+                  data-win-tooltip="Gerar novo protocolo remoto"
                   onClick={() => {
                     const roomCode = generateProtocolCode();
                     setActiveRoomCode(roomCode);
@@ -90,6 +96,7 @@ export function RoomPageClient() {
                   <button
                     type="button"
                     className="action-btn"
+                    data-win-tooltip="Abrir a sala no formulario"
                     onClick={() => router.push(`/jogo?mode=pvp_remote&room=${activeRoomCode}`)}
                   >
                     Abrir sala no jogo
@@ -107,7 +114,7 @@ export function RoomPageClient() {
               </label>
               <input
                 id="guest-name"
-                className="chat-input !bg-[#f7f1e4] !text-inkBlack !border-[#7b7a74]"
+                className="win-input"
                 value={guestName}
                 onChange={(event) => setGuestName(event.target.value)}
               />
@@ -117,7 +124,7 @@ export function RoomPageClient() {
               </label>
               <input
                 id="room-code"
-                className="chat-input !bg-[#f7f1e4] !text-inkBlack !border-[#7b7a74]"
+                className="win-input"
                 placeholder="DFGF-0000"
                 value={joinCodeInput}
                 onChange={(event) => setJoinCodeInput(event.target.value)}
@@ -126,6 +133,7 @@ export function RoomPageClient() {
               <button
                 type="button"
                 className="action-btn"
+                data-win-tooltip="Entrar em sala existente"
                 disabled={!canJoin}
                 style={{ opacity: canJoin ? 1 : 0.45 }}
                 onClick={() => {
