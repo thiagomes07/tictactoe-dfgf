@@ -13,6 +13,7 @@ interface AudioPreferenceEvent {
 export function GlobalAudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [enabled, setEnabled] = useState(false);
+  const [blockedByAutoplay, setBlockedByAutoplay] = useState(false);
 
   useEffect(() => {
     setEnabled(getAudioEnabled());
@@ -47,14 +48,51 @@ export function GlobalAudioPlayer() {
 
     if (!enabled) {
       audio.pause();
+      setBlockedByAutoplay(false);
       return;
     }
 
     audio.volume = 0.45;
-    void audio.play().catch(() => {
-      // If autoplay is blocked, next user interaction will usually allow play.
-    });
+    audio.muted = false;
+    void audio
+      .play()
+      .then(() => {
+        setBlockedByAutoplay(false);
+      })
+      .catch(() => {
+        // Browser blocked autoplay with sound; we'll retry on first user interaction.
+        setBlockedByAutoplay(true);
+      });
   }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !blockedByAutoplay) return;
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const tryResume = () => {
+      void audio
+        .play()
+        .then(() => {
+          setBlockedByAutoplay(false);
+        })
+        .catch(() => {
+          // Keep waiting for another interaction.
+        });
+    };
+
+    const options: AddEventListenerOptions = { passive: true };
+    window.addEventListener("pointerdown", tryResume, options);
+    window.addEventListener("keydown", tryResume, options);
+    window.addEventListener("touchstart", tryResume, options);
+
+    return () => {
+      window.removeEventListener("pointerdown", tryResume);
+      window.removeEventListener("keydown", tryResume);
+      window.removeEventListener("touchstart", tryResume);
+    };
+  }, [blockedByAutoplay, enabled]);
 
   return <audio ref={audioRef} src={AUDIO_SRC} loop preload="auto" />;
 }

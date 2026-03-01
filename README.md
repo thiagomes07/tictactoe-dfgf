@@ -54,17 +54,15 @@ O objetivo desta base foi entregar uma demo funcional de ponta a ponta em pouco 
 - Integração com Bedrock para respostas de chat e fallback local quando indisponível.
 - Geração de comentários automáticos e anúncios do "departamento".
 
----
+### Estratégia de Persistência
 
-## Estratégia de Persistência
-
-### Sem banco de dados (intencional para demo)
+#### Sem banco de dados (intencional para demo)
 Este projeto **não usa banco** por decisão consciente de escopo:
 - desenvolvimento de 2 dias,
 - objetivo de demo navegável e divertida,
 - foco em fluxo de jogo e experiência, não em retenção permanente.
 
-### Onde os dados ficam
+#### Onde os dados ficam
 - **Backend**: memória do processo (match store / room store / sessões).
   - reiniciar o container limpa estado do servidor.
 - **Frontend**: `localStorage` para:
@@ -74,9 +72,7 @@ Este projeto **não usa banco** por decisão consciente de escopo:
 
 Essa combinação foi suficiente para demo multiusuário básica sem overhead de modelagem de banco, migrações, cache distribuído e observabilidade mais pesada.
 
----
-
-## Por que essa arquitetura foi escolhida
+### Por que essa arquitetura foi escolhida
 - **Go no backend**: baixo overhead, WebSocket simples, boa performance para estado em memória.
 - **Next.js no frontend**: produtividade alta para UI complexa e rotas.
 - **Compose**: operação extremamente simples para demo/deploy manual.
@@ -86,7 +82,41 @@ Poderia ser muito mais sofisticado (PostgreSQL/Redis, fila assíncrona, métrica
 
 ---
 
-## Relatório de Deploy (EC2 + Compose)
+## Justificativa Técnica (Desafio)
+
+### 1) Quais foram as 3 decisões técnicas mais importantes que tomei e por quê?
+1. **Separar claramente frontend e backend, com contratos explícitos (HTTP + WebSocket)**.  
+Isso permitiu evoluir interface e regras de jogo em paralelo sem acoplamento forte. Também deixou o fluxo remoto (salas) mais previsível, com o backend como fonte de verdade do estado da partida.
+
+2. **Manter o estado no backend em memória e o histórico do usuário no `localStorage` no frontend**.  
+Como o objetivo era uma demo funcional em 2 dias, essa escolha reduziu bastante complexidade operacional e de código (sem migrations, sem camada de repositório SQL, sem setup de cache distribuído), mantendo a experiência completa para avaliação.
+
+3. **Usar Bedrock apenas no chat e manter a jogabilidade da IA com lógica nativa (heurística/minimax)**.  
+Essa decisão trouxe controle de dificuldade e previsibilidade de gameplay, sem depender da latência/custo de LLM para cada jogada. A IA generativa ficou onde agrega mais valor no projeto: personalidade e interação dos personagens. Além de tudo, usar LLM nas jogadas seria quase impossível principalmente para conciliar com o chat, uma vez que em outras experiências usando Bedrock, sei que a quota default dele gera bastante erro de throttling e solicitar mais quota poderia levar tempo e me expor a DOW (Deny of Wallet). 
+
+### 2) O que eu faria diferente se tivesse mais tempo?
+- Implementaria **testes unitários e de integração** cobrindo regras do jogo, sala remota, contratos de API e eventos WebSocket.
+- Evoluiria o controle de robustez da IA com **rate limits mais finos**, fila de processamento de prompts, retry com backoff e fallback mais sofisticado para proteger contra throttling/downtime.
+- Separaria infraestrutura de produção em serviços dedicados: **frontend e backend isolados**, **load balancer**, **auto scaling** no backend e regras de health mais robustas.
+- Colocaria o frontend em **CDN**, com **DNS e HTTPS** (certificados) para acesso público correto.
+- Montaria uma **esteira CI/CD** para build, validação e deploy automático com rollback básico.
+- Adicionaria **login e conta de usuário**, com histórico persistente entre dispositivos, o que exigiria banco de dados e modelagem de domínio mais completa.
+- Trabalharia otimização de IA com versionamento de prompt, cache de contexto e estratégia de custo/desempenho por modelo.
+
+### 3) Se usei IA, como ela ajudou e onde optei por fazer diferente?
+Usei IA como acelerador, mas a direção técnica foi minha do início ao fim. Eu defini a arquitetura, a separação de responsabilidades, a estrutura dos projetos e iniciei a base de frontend/backend. Em vários pontos, primeiro descrevi a lógica em alto nível e só depois usei IA para ajudar a converter em implementação na sintaxe final.
+
+Nos pontos críticos, mantive controle manual para evitar decisões ruins de escopo:
+- **Evitei overengineering**: a IA frequentemente sugeria complexidade desnecessária (por exemplo, subir banco em container sem necessidade para a proposta da demo).
+- **Não usei LLM para jogadas do adversário**: mantive a IA de jogo algorítmica para preservar dificuldade previsível e evitar dependência de latência/throttling do Bedrock no loop principal do jogo.
+- **Reescrevi prompts e mensagens** para fugir de respostas genéricas e manter personalidade consistente dos personagens.
+- **Ajustei visual manualmente** porque a primeira direção gerada era genérica; refinei para sustentar a identidade retrô anos 90 de forma intencional.
+
+IA ajudou na produtividade, mas as decisões de arquitetura, escopo, qualidade de UX e consistência técnica ficaram sob minha responsabilidade.
+
+---
+
+## Staging Deploy (EC2 + Compose)
 
 O deploy desta demo foi executado em uma instância EC2 única, com duas aplicações containerizadas:
 - `backend` (porta `8080`),
@@ -97,7 +127,7 @@ A orquestração foi feita via Docker Compose, com comunicação interna entre o
 Essa estratégia foi escolhida para reduzir fricção operacional e permitir reprodução rápida do ambiente em um contexto de tempo curto (2 dias de desenvolvimento).
 
 Ambiente publicado:
-- `https://SEU-LINK-AQUI`
+- `http://98.81.157.169:3000`
 
 ---
 
