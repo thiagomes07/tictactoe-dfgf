@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
+
+import { AppProviders } from "@/app/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DFGF - Formulário 3x3-B",
+  title: "DFGF - Formulario 3x3-B",
   description: "Base do projeto Burocracia S.A."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }
