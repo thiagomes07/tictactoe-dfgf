@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thiagogomes/tictactoe-dfgf/backend/internal/chat"
@@ -26,6 +27,16 @@ type Server struct {
 	version string
 	service string
 	rng     *rand.Rand
+
+	chatMu                sync.Mutex
+	lastChatAt            map[string]time.Time
+	pendingRepliesByKey   map[string]int
+	pendingRepliesByMatch map[string]int
+	chatMinInterval       time.Duration
+	chatReplyDelayMin     time.Duration
+	chatReplyDelayMax     time.Duration
+	maxPendingPerPlayer   int
+	maxPendingPerMatch    int
 }
 
 func NewServer(store *store.Store, chatSvc *chat.Service, hub *ws.Hub, version string) *Server {
@@ -34,12 +45,20 @@ func NewServer(store *store.Store, chatSvc *chat.Service, hub *ws.Hub, version s
 	}
 
 	return &Server{
-		store:   store,
-		chat:    chatSvc,
-		hub:     hub,
-		version: version,
-		service: "dfgf-backend",
-		rng:     rand.New(rand.NewSource(time.Now().UnixNano())),
+		store:                 store,
+		chat:                  chatSvc,
+		hub:                   hub,
+		version:               version,
+		service:               "dfgf-backend",
+		rng:                   rand.New(rand.NewSource(time.Now().UnixNano())),
+		lastChatAt:            make(map[string]time.Time),
+		pendingRepliesByKey:   make(map[string]int),
+		pendingRepliesByMatch: make(map[string]int),
+		chatMinInterval:       2500 * time.Millisecond,
+		chatReplyDelayMin:     1200 * time.Millisecond,
+		chatReplyDelayMax:     5000 * time.Millisecond,
+		maxPendingPerPlayer:   1,
+		maxPendingPerMatch:    8,
 	}
 }
 
@@ -329,9 +348,19 @@ func (s *Server) handleSendChatMessage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "INVALID_INPUT", "playerId and body are required", nil)
 		return
 	}
+	req.Body = strings.TrimSpace(req.Body)
+
+	accepted, retryAfterMs := s.acquireReplySlot(matchID, req.PlayerID)
+	if !accepted {
+		writeError(w, http.StatusTooManyRequests, "RATE_LIMITED", "aguarde antes de enviar nova mensagem", map[string]any{
+			"retryAfterMs": retryAfterMs,
+		})
+		return
+	}
 
 	match, err := s.store.GetMatch(matchID)
 	if err != nil {
+		s.releaseReplySlot(matchID, req.PlayerID)
 		s.writeStoreError(w, err)
 		return
 	}
@@ -340,26 +369,16 @@ func (s *Server) handleSendChatMessage(w http.ResponseWriter, r *http.Request) {
 		ActorID:          model.ActorEstagiario,
 		ActorDisplayName: "Estagiario(a)",
 		Channel:          model.ChatChannelInternalChat,
-		Body:             strings.TrimSpace(req.Body),
+		Body:             req.Body,
 	})
 	if err != nil {
+		s.releaseReplySlot(matchID, req.PlayerID)
 		s.writeStoreError(w, err)
 		return
 	}
 	s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": userMessage})
 
-	recentMessages, _, _ := s.store.ListMessages(matchID, nil, 20)
-	actorID, body := s.chat.GenerateReply(r.Context(), match, recentMessages, req.Body)
-
-	replyMessage, err := s.store.AddMessage(matchID, model.ChatMessage{
-		ActorID:          actorID,
-		ActorDisplayName: actorDisplayName(actorID),
-		Channel:          model.ChatChannelInternalChat,
-		Body:             body,
-	})
-	if err == nil {
-		s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": replyMessage})
-	}
+	s.scheduleReply(matchID, req.PlayerID, match, req.Body)
 
 	writeJSON(w, http.StatusOK, model.SendChatMessageResponse{
 		Accepted:      true,
@@ -490,4 +509,89 @@ func writeError(w http.ResponseWriter, statusCode int, code, message string, det
 			Details: details,
 		},
 	})
+}
+
+func (s *Server) scheduleReply(matchID, playerID string, snapshot model.MatchSnapshot, userText string) {
+	delayRange := s.chatReplyDelayMax - s.chatReplyDelayMin
+	randomDelay := s.chatReplyDelayMin
+	if delayRange > 0 {
+		randomDelay += time.Duration(s.rng.Int63n(int64(delayRange)))
+	}
+
+	go func() {
+		defer s.releaseReplySlot(matchID, playerID)
+
+		timer := time.NewTimer(randomDelay)
+		defer timer.Stop()
+		<-timer.C
+
+		ctx, cancel := context.WithTimeout(context.Background(), 22*time.Second)
+		defer cancel()
+
+		recentMessages, _, _ := s.store.ListMessages(matchID, nil, 20)
+		actorID, body := s.chat.GenerateReply(ctx, snapshot, recentMessages, userText)
+
+		replyMessage, err := s.store.AddMessage(matchID, model.ChatMessage{
+			ActorID:          actorID,
+			ActorDisplayName: actorDisplayName(actorID),
+			Channel:          model.ChatChannelInternalChat,
+			Body:             body,
+		})
+		if err == nil {
+			s.hub.Broadcast(matchID, "chat.message.created", map[string]any{"message": replyMessage})
+		}
+	}()
+}
+
+func (s *Server) acquireReplySlot(matchID, playerID string) (bool, int) {
+	key := matchID + "::" + playerID
+	now := time.Now().UTC()
+
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+
+	if lastAt, ok := s.lastChatAt[key]; ok {
+		nextAllowedAt := lastAt.Add(s.chatMinInterval)
+		if now.Before(nextAllowedAt) {
+			retryAfterMs := int(nextAllowedAt.Sub(now).Milliseconds())
+			if retryAfterMs < 100 {
+				retryAfterMs = 100
+			}
+			return false, retryAfterMs
+		}
+	}
+
+	if s.pendingRepliesByKey[key] >= s.maxPendingPerPlayer {
+		return false, int(s.chatReplyDelayMin.Milliseconds())
+	}
+
+	if s.pendingRepliesByMatch[matchID] >= s.maxPendingPerMatch {
+		return false, int((s.chatReplyDelayMin + 800*time.Millisecond).Milliseconds())
+	}
+
+	s.lastChatAt[key] = now
+	s.pendingRepliesByKey[key]++
+	s.pendingRepliesByMatch[matchID]++
+	return true, 0
+}
+
+func (s *Server) releaseReplySlot(matchID, playerID string) {
+	key := matchID + "::" + playerID
+
+	s.chatMu.Lock()
+	defer s.chatMu.Unlock()
+
+	if s.pendingRepliesByKey[key] > 0 {
+		s.pendingRepliesByKey[key]--
+	}
+	if s.pendingRepliesByKey[key] <= 0 {
+		delete(s.pendingRepliesByKey, key)
+	}
+
+	if s.pendingRepliesByMatch[matchID] > 0 {
+		s.pendingRepliesByMatch[matchID]--
+	}
+	if s.pendingRepliesByMatch[matchID] <= 0 {
+		delete(s.pendingRepliesByMatch, matchID)
+	}
 }

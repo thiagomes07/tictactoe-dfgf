@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Courier_Prime, Special_Elite, VT323 } from "next/font/google";
+import { Suspense } from "react";
 
 import { AppProviders } from "@/app/providers";
 import { DepartmentHeader } from "@/components/department-header";
@@ -46,7 +47,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AppProviders>
           <GlobalAudioPlayer />
           <div className="dfgf-shell">
-            <DepartmentHeader />
+            <Suspense fallback={<div className="dfgf-topline">Carregando cabecalho do departamento...</div>}>
+              <DepartmentHeader />
+            </Suspense>
             {children}
           </div>
         </AppProviders>

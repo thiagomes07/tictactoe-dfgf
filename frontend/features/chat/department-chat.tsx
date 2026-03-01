@@ -7,18 +7,35 @@ import { ACTORS, type UiChatMessage } from "@/features/chat/actors";
 interface DepartmentChatProps {
   protocolCode: string;
   messages: UiChatMessage[];
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string) => boolean;
+  sendCooldownMs?: number;
 }
 
-export function DepartmentChat({ protocolCode, messages, onSendMessage }: DepartmentChatProps) {
+export function DepartmentChat({
+  protocolCode,
+  messages,
+  onSendMessage,
+  sendCooldownMs = 0
+}: DepartmentChatProps) {
   const [draft, setDraft] = useState("");
+  const [cooldownLeftMs, setCooldownLeftMs] = useState(0);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
+  useEffect(() => {
+    if (cooldownLeftMs <= 0) return;
+    const timer = window.setInterval(() => {
+      setCooldownLeftMs((prev) => Math.max(0, prev - 250));
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [cooldownLeftMs]);
+
   const orderedMessages = useMemo(() => messages, [messages]);
+  const canSend = cooldownLeftMs <= 0;
 
   return (
     <section className="chat-panel">
@@ -31,6 +48,7 @@ export function DepartmentChat({ protocolCode, messages, onSendMessage }: Depart
         {orderedMessages.map((message) => {
           const actor = ACTORS[message.actorId];
           const isSystem = actor.system;
+          const isBoss = actor.id === "geraldo";
 
           return (
             <article key={message.id} className="chat-item">
@@ -40,9 +58,11 @@ export function DepartmentChat({ protocolCode, messages, onSendMessage }: Depart
 
               <div>
                 <div className="chat-meta">
-                  {message.createdAt} - {actor.name}
+                  {message.createdAt} - {actor.name} <span className="chat-role">({actor.role})</span>
                 </div>
-                <div className={`chat-body ${isSystem ? "chat-system" : ""}`}>{message.text}</div>
+                <div className={`chat-body ${isSystem ? "chat-system" : ""} ${isBoss ? "chat-boss" : ""}`}>
+                  {message.text}
+                </div>
               </div>
             </article>
           );
@@ -54,10 +74,15 @@ export function DepartmentChat({ protocolCode, messages, onSendMessage }: Depart
         className="chat-input-wrap"
         onSubmit={(event) => {
           event.preventDefault();
+          if (!canSend) return;
+
           const trimmed = draft.trim();
           if (!trimmed) return;
-          onSendMessage(trimmed);
+          const accepted = onSendMessage(trimmed);
+          if (!accepted) return;
+
           setDraft("");
+          setCooldownLeftMs(sendCooldownMs);
         }}
       >
         <input
@@ -67,7 +92,11 @@ export function DepartmentChat({ protocolCode, messages, onSendMessage }: Depart
           placeholder="Enviar mensagem ao departamento..."
           maxLength={280}
           aria-label="Mensagem para o chat interno"
+          disabled={!canSend}
         />
+        {!canSend ? (
+          <p className="chat-cooldown">Aguarde {Math.ceil(cooldownLeftMs / 1000)}s para nova mensagem.</p>
+        ) : null}
       </form>
     </section>
   );

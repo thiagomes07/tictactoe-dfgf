@@ -241,8 +241,6 @@ type WsEnvelope[T any] struct {
 	EmittedAt time.Time `json:"emittedAt"`
 }
 
-type MatchServerEvent[T any] = WsEnvelope[T]
-
 type MatchClientEvent struct {
 	Type      string         `json:"type"`
 	Payload   map[string]any `json:"payload"`
